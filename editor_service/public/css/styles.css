@@ -1,0 +1,123 @@
+/* General Page Styles */
+body {
+    font-family: Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    background-color: #f0f0f0;
+}
+
+/* Login Container */
+.login-container {
+    background-color: white;
+    padding: 2rem;
+    border-radius: 5px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    width: 300px;
+    text-align: center;
+}
+
+/* Headings */
+h1 {
+    color: #333;
+}
+
+/* Form Styles */
+form {
+    display: flex;
+    flex-direction: column;
+}
+
+label {
+    text-align: left;
+    margin-top: 1rem;
+    font-weight: bold;
+}
+
+input {
+    padding: 0.5rem;
+    margin-top: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+}
+
+/* Button Styles */
+button {
+    margin-top: 1rem;
+    padding: 0.5rem;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: #0056b3;
+}
+
+/* Error Message */
+.error-message {
+    color: red;
+    margin-top: 1rem;
+}
+
+/* Register Link */
+.register-link {
+    margin-top: 1rem;
+    font-size: 0.9rem;
+}
+
+.register-link a {
+    color: #007bff;
+    text-decoration: none;
+}
+
+.register-link a:hover {
+    text-decoration: underline;
+}
+
+
+
+/* Container */
+.register-container, .login-container {
+    background-color: white;
+    padding: 2rem;
+    border-radius: 5px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    width: 300px;
+    text-align: center;
+}
+
+
+/* Login Link */
+.login-link, .register-link {
+    margin-top: 1rem;
+    font-size: 0.9rem;
+}
+
+.login-link a, .register-link a {
+    color: #007bff;
+    text-decoration: none;
+}
+
+.login-link a:hover, .register-link a:hover {
+    text-decoration: underline;
+}
+
+#canvas-container {
+    position: relative;
+    border: 1px solid #ccc;
+    padding: 10px;
+  }
+  
+#visualization-canvas {
+    position: absolute;
+    background: #fff;
+  }
+  
+.slider-container {
+    margin-bottom: 8px;
+}

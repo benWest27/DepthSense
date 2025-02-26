@@ -1,0 +1,102 @@
+
+services:
+
+  nginx:
+    build: ./nginx
+    ports:
+      - "80:80"
+    depends_on:
+      - auth_service
+      - editor_service
+      - viewer_service
+      - data_service
+      - postgres
+    networks:
+      - app-network
+
+  postgres:
+    image: postgres:14
+    restart: always
+    environment:
+      POSTGRES_DB: depthsense
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data  # Corrected volume reference
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "admin"]
+      interval: 10s
+      retries: 5
+      start_period: 10s
+
+  auth_service:
+    build: ./auth_service
+    container_name: auth_service
+    ports:
+      - "5000:5000"
+    environment:
+      - JWT_SECRET=${JWT_SECRET}
+      - DATA_SERVICE_URL=http://data_service:5003
+    depends_on:
+      - data_service
+    networks:
+      - app-network
+
+  editor_service:
+    build: ./editor_service
+    container_name: editor_service
+    ports:
+      - "5001:5001"
+    environment:
+      - DATA_SERVICE_URL=http://data_service:5003
+      - DB_HOST=postgres          # <--- Use the service name from docker-compose
+      - DB_PORT=5432
+      - DB_NAME=depthsense
+      - DB_USER=admin
+      - DB_PASSWORD=password
+    depends_on:
+      - data_service
+    networks:
+      - app-network
+
+  viewer_service:
+    build: ./viewer_service
+    container_name: viewer_service
+    ports:
+      - "5002:5002"
+    environment:
+      - DATA_SERVICE_URL=http://data_service:5003
+    depends_on:
+      - data_service
+    networks:
+      - app-network
+
+  data_service:
+    build: ./data_service
+    container_name: data_service
+    ports:
+      - "5003:5003"
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=admin
+      - DB_PASSWORD=password
+      - DB_NAME=depthsense
+    depends_on:
+      - postgres
+    networks:
+      - app-network
+
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  app-network:
+    driver: bridge
