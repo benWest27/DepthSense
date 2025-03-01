@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto&display=swap">
+
+    <title>DepthSense Editor</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- Top Navigation Bar -->
+  <div id="top-bar">
+    <button id="logout">Logout</button>
+    <button id="save">Save</button>
+    <button id="open">Open</button>
+    <button id="upload">Upload</button>
+    <button id="viewer">Viewer</button>
+  </div>
+
+  <div id="dashboard-container">
+    <!-- Left Sidebar -->
+    <aside id="left-sidebar">
+      <h3>Data Source</h3>
+      <select id="data-source-select">
+        <option value="">Select Data Source</option>
+        <option value="source1">Source 1</option>
+        <option value="source2">Source 2</option>
+      </select>
+
+      <h3>Fields</h3>
+      <div id="fields-container">
+        <div class="field-item">
+          <span>Field 1</span>
+          <span class="field-type">number</span>
+        </div>
+        <div class="field-item">
+          <span>Field 2</span>
+          <span class="field-type">string</span>
+        </div>
+      </div>
+
+      <div id="layer-panel">
+        <div class="layer-tab">Layer 1</div>
+        <div class="layer-tab">Layer 2</div>
+        <div class="layer-tab">Layer 3</div>
+      
+        <!-- Add a button to create a new layer -->
+        <button id="add-layer">Add Layer</button>
+      </div>
+
+      <h3>Canvas Position/Size</h3>
+      <div>
+        <label>X:</label>
+        <input type="number" id="canvas-x" value="50">
+        <label>Y:</label>
+        <input type="number" id="canvas-y" value="50">
+        <label>Width:</label>
+        <input type="number" id="canvas-width" value="600">
+        <label>Height:</label>
+        <input type="number" id="canvas-height" value="600">
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main id="main-content">
+      <div id="layer-panel">
+        <div class="layer-tab">Layer 1</div>
+        <div class="layer-tab">Layer 2</div>
+        <div class="layer-tab">Layer 3</div>
+      </div>
+
+      <div id="axis-controls">
+        <label>Column</label>
+        <div class="axis-field">
+          Field 1
+          <button class="remove-field">×</button>
+        </div>
+        <label>Row</label>
+        <div class="axis-field">
+          Field 2
+          <button class="remove-field">×</button>
+        </div>
+      </div>
+
+      <div id="canvas-container">
+        <canvas id="visualization-canvas"></canvas>
+      </div>
+    </main>
+
+    <!-- Right Sidebar -->
+    <aside id="right-sidebar">
+      <button id="toggle-mouse-control">Toggle Mouse Control</button>
+      <button id="toggle-focal-mode">Toggle Focal Mode</button>
+
+      <div class="slider-container">
+        <label for="layer-depth">Layer Depth:</label>
+        <input type="range" id="layer-depth" min="0" max="1" step="0.01" value="0">
+      </div>
+      <div class="slider-container">
+        <label for="horizontal-focal">Focal X:</label>
+        <input type="range" id="horizontal-focal" min="0" max="100" value="50">
+      </div>
+      <div class="slider-container">
+        <label for="vertical-focal">Focal Y:</label>
+        <input type="range" id="vertical-focal" min="0" max="100" value="50">
+      </div>
+      <div class="slider-container">
+        <label for="marker-size">Marker:</label>
+        <input type="range" id="marker-size" min="1" max="20" value="5">
+      </div>
+      <div class="slider-container">
+        <label for="zoom">Size:</label>
+        <input type="range" id="zoom" min="0.1" max="3" step="0.1" value="1">
+      </div>
+    </aside>
+  </div>
+    <script src="js/app.js"></script>
+</body>
+</html>
