@@ -14,12 +14,14 @@ const healthRoutes = require('./routes/health');
 const datasetRoutes = require('./routes/datasets');
 const userRoutes = require('./routes/users');
 const visualizationRoutes = require('./routes/visualization');
+const mockDataRoutes = require('./routes/mockdata');
 
 // Register Routes
 app.use('/api/health', healthRoutes);
 app.use('/api/datasets', datasetRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/visualization', visualizationRoutes);
+app.use('/api/mockdata', mockDataRoutes);
 
 // Start Server
 app.listen(port, () => {
@@ -33,4 +35,8 @@ process.on('SIGINT', async () => {
     process.exit(0);
   });
 
+// In server.js
+// ...
+
 module.exports = { app };
+
