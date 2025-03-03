@@ -1,16 +1,18 @@
-# Use official PostgreSQL image as base
-FROM postgres:14
+# Use an official Node runtime as a parent image
+FROM node:14
 
-# Set environment variables for PostgreSQL
-ENV POSTGRES_DB=depthsense
-ENV POSTGRES_USER=admin
-ENV POSTGRES_PASSWORD=password
+# Set the working directory in the container
+WORKDIR /usr/src/app
 
-# Copy initialization scripts
-COPY ./database/init.sql /docker-entrypoint-initdb.d/
+# Copy package files and install dependencies
+COPY package*.json ./
+RUN npm install
 
-# Expose PostgreSQL port
-EXPOSE 5432
+# Copy the rest of the application source code
+COPY . .
 
-# Ensure both databases exist at startup
-RUN echo "CREATE DATABASE admin;" >> /docker-entrypoint-initdb.d/00_create_admin_db.sql
+# Expose the port that the data service API will listen on
+EXPOSE 5003
+
+# Start the data service API
+CMD ["node", "server.js"]

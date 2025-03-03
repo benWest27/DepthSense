@@ -1,6 +1,6 @@
-
-
 document.addEventListener("DOMContentLoaded", () => {
+  console.log("DOMContentLoaded: Editor service is starting.");
+
   const canvas = document.getElementById("visualization-canvas");
   const ctx = canvas.getContext("2d");
 
@@ -17,36 +17,39 @@ document.addEventListener("DOMContentLoaded", () => {
     canvasHeight: 600,
     layers: [],
     dataSource: null
-    };
-  // app.js (editor service)
+  };
+
+  // Variable to hold the fetched CSV data
   let mockDataSource = [];
 
-  // Function to fetch mock CSV data from the data service
+  
+  // Fetch CSV mock data from data service endpoint
   function fetchMockData() {
-    fetch('/api/data/mock')
+    console.log("fetchMockData: Fetching CSV data from http://localhost:5003/api/data/mock...");
+    fetch('http://localhost:5003/api/data/mock')
       .then(response => {
         if (!response.ok) {
           throw new Error('Network response was not ok');
         }
+        console.log("fetchMockData: Response OK, parsing JSON.");
         return response.json();
       })
       .then(data => {
+        console.log("fetchMockData: Data received:", data);
         mockDataSource = data;
-        console.log('Mock Data:', mockDataSource);
-        // Extract field names from the first row
         updateDataFields();
       })
-      .catch(error => console.error('Error fetching mock data:', error));
+      .catch(error => console.error("fetchMockData: Error fetching mock data:", error));
   }
-
+  
+  // Update the Fields container with CSV field names
   function updateDataFields() {
+    console.log("updateDataFields: Updating fields based on CSV data.");
     if (mockDataSource.length > 0) {
       const fieldNames = Object.keys(mockDataSource[0]);
-      console.log('Available Fields:', fieldNames);
-      // Update your UI (for example, display draggable field items) using these field names.
-      // For example, you could dynamically add draggable elements to a container:
+      console.log("updateDataFields: Available Fields:", fieldNames);
       const fieldsContainer = document.getElementById('fields-container');
-      fieldsContainer.innerHTML = ''; // Clear existing fields
+      fieldsContainer.innerHTML = ""; // Clear existing fields
       fieldNames.forEach(field => {
         const fieldDiv = document.createElement('div');
         fieldDiv.className = 'draggable-field';
@@ -55,57 +58,86 @@ document.addEventListener("DOMContentLoaded", () => {
         fieldDiv.innerHTML = `${field} <span class="field-type">string</span>`;
         fieldsContainer.appendChild(fieldDiv);
 
-        // Set up drag event for the new field
+        // Debug log
+        console.log(`updateDataFields: Added field '${field}' as draggable.`);
+
+        // Setup drag event for this field
         fieldDiv.addEventListener('dragstart', (e) => {
+          console.log(`dragstart: Field '${field}' is being dragged.`);
           e.dataTransfer.setData('text/plain', fieldDiv.getAttribute('data-field'));
         });
       });
+    } else {
+      console.log("updateDataFields: No data available to extract fields.");
     }
   }
 
-  fetchMockData();
-
+  // Listen to data source selection changes
+  const dataSourceSelect = document.getElementById("data-source-select");
+  dataSourceSelect.addEventListener("change", (e) => {
+    const selectedSource = e.target.value;
+    console.log("Data Source selected:", selectedSource);
+    if (selectedSource === "csv") {
+      // When CSV is selected, fetch the CSV data and update the fields container
+      fetchMockData();
+    } else {
+      // If another data source is selected (or cleared), empty the fields container
+      document.getElementById('fields-container').innerHTML = "";
+      console.log("Data Source cleared, no valid source selected.");
+    }
+  });
   // Update canvas CSS properties and dimensions.
   function updateCanvasProperties() {
+    console.log("updateCanvasProperties: Updating canvas dimensions.");
     canvas.style.left = state.canvasX + "px";
     canvas.style.top = state.canvasY + "px";
     canvas.width = state.canvasWidth;
     canvas.height = state.canvasHeight;
   }
   updateCanvasProperties();
-  window.addEventListener("resize", updateCanvasProperties);
+  window.addEventListener("resize", () => {
+    console.log("resize: Window resized, updating canvas.");
+    updateCanvasProperties();
+  });
 
   // Input Controls for focal point, zoom, marker size
   document.getElementById("horizontal-focal").addEventListener("input", (e) => {
     if (state.sliderFocal) {
       state.focalPoint.x = e.target.value / 100;
+      console.log("horizontal-focal: Updated focalPoint.x to", state.focalPoint.x);
       render();
     }
   });
   document.getElementById("vertical-focal").addEventListener("input", (e) => {
     if (state.sliderFocal) {
       state.focalPoint.y = e.target.value / 100;
+      console.log("vertical-focal: Updated focalPoint.y to", state.focalPoint.y);
       render();
     }
   });
   document.getElementById("zoom").addEventListener("input", (e) => {
     state.zoom = parseFloat(e.target.value);
+    console.log("zoom: Updated zoom to", state.zoom);
     render();
   });
   document.getElementById("marker-size").addEventListener("input", (e) => {
     state.markerSize = parseInt(e.target.value);
+    console.log("marker-size: Updated markerSize to", state.markerSize);
     render();
   });
   document.getElementById("toggle-mouse-control").addEventListener("click", () => {
     state.mouseControl = !state.mouseControl;
+    console.log("toggle-mouse-control: mouseControl is now", state.mouseControl);
   });
   document.getElementById("toggle-focal-mode").addEventListener("click", () => {
     state.sliderFocal = !state.sliderFocal;
+    console.log("toggle-focal-mode: sliderFocal is now", state.sliderFocal);
   });
   canvas.addEventListener("mousemove", (e) => {
     if (state.mouseControl && !state.sliderFocal) {
       state.focalPoint.x = e.offsetX / canvas.width;
       state.focalPoint.y = e.offsetY / canvas.height;
+      console.log("mousemove: Updated focalPoint to", state.focalPoint);
       render();
     }
   });
@@ -113,37 +145,42 @@ document.addEventListener("DOMContentLoaded", () => {
   // Layer depth control
   document.getElementById("layer-depth").addEventListener("input", (e) => {
     state.layerOffset = parseFloat(e.target.value);
+    console.log("layer-depth: Updated layerOffset to", state.layerOffset);
     render();
   });
 
   // Canvas positioning & size controls
   document.getElementById("canvas-x").addEventListener("input", (e) => {
     state.canvasX = parseInt(e.target.value);
+    console.log("canvas-x: Updated canvasX to", state.canvasX);
     updateCanvasProperties();
     render();
   });
   document.getElementById("canvas-y").addEventListener("input", (e) => {
     state.canvasY = parseInt(e.target.value);
+    console.log("canvas-y: Updated canvasY to", state.canvasY);
     updateCanvasProperties();
     render();
   });
   document.getElementById("canvas-width").addEventListener("input", (e) => {
     state.canvasWidth = parseInt(e.target.value);
+    console.log("canvas-width: Updated canvasWidth to", state.canvasWidth);
     updateCanvasProperties();
     render();
   });
   document.getElementById("canvas-height").addEventListener("input", (e) => {
     state.canvasHeight = parseInt(e.target.value);
+    console.log("canvas-height: Updated canvasHeight to", state.canvasHeight);
     updateCanvasProperties();
     render();
   });
 
   // Generate a mock layer with data
   function generateMockLayer(z, color, numPoints, xRange, yRange) {
+    console.log("generateMockLayer: Generating layer with z =", z);
     const data = [];
     for (let i = 0; i < numPoints; i++) {
       const x = i / (numPoints - 1);
-      // Sine wave with a bit of randomness
       const y = 0.5 + 0.4 * Math.sin(x * Math.PI * 2) + (Math.random() - 0.5) * 0.1;
       data.push({ x, y });
     }
@@ -158,6 +195,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Draw axes (with tickers) for a specific layer
   function drawLayerAxes(layer) {
+    console.log("drawLayerAxes: Drawing axes for layer with z =", layer.z);
     const margin = 40;
     ctx.save();
     ctx.strokeStyle = "#333";
@@ -214,30 +252,29 @@ document.addEventListener("DOMContentLoaded", () => {
     ctx.restore();
   }
 
-  // Render layers with parallax + zoom
+  // Render layers with parallax + zoom (draw farthest layers first)
   function render() {
+    console.log("render: Rendering layers...");
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    // Sort by effective depth
+    // Sort layers so that layers with higher effective z (further away) are drawn first
     state.layers.sort((a, b) => (b.z - state.layerOffset) - (a.z - state.layerOffset));
-
 
     state.layers.forEach(layer => {
       let effectiveZ = layer.z - state.layerOffset;
       if (effectiveZ < 0) effectiveZ = 0;
       const perspective = 1 / (1 + effectiveZ);
 
-      // Parallax offsets
       const parallaxX = (state.focalPoint.x - 0.5) * canvas.width * (1 - perspective);
       const parallaxY = (state.focalPoint.y - 0.5) * canvas.height * (1 - perspective);
 
       ctx.save();
       ctx.translate(parallaxX, parallaxY);
-      // Zoom from canvas center
+      // Zoom transformation centered on canvas
       ctx.translate(canvas.width / 2, canvas.height / 2);
       ctx.scale(state.zoom * perspective, state.zoom * perspective);
       ctx.translate(-canvas.width / 2, -canvas.height / 2);
 
-      // Draw data points
+      // Draw data points for the layer
       layer.data.forEach(point => {
         ctx.beginPath();
         ctx.arc(
@@ -251,19 +288,18 @@ document.addEventListener("DOMContentLoaded", () => {
         ctx.fill();
       });
 
-      // Draw axes for this layer
+      // Draw axes for the layer
       drawLayerAxes(layer);
 
       ctx.restore();
     });
   }
 
-  // Add a new layer
+  // Add a new layer with random properties
   function addLayer() {
+    console.log("addLayer: Adding new layer...");
     const randomZ = Math.random();
-    const randomColor = `rgba(${Math.floor(Math.random() * 255)}, 
-                              ${Math.floor(Math.random() * 255)}, 
-                              ${Math.floor(Math.random() * 255)}, 0.8)`;
+    const randomColor = `rgba(${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, 0.8)`;
     const xRange = randomZ < 0.5 ? [0, 100] : [0, 200];
     const yRange = randomZ < 0.5 ? [0, 100] : [0, 150];
     const newLayer = generateMockLayer(randomZ, randomColor, 20, xRange, yRange);
@@ -283,10 +319,11 @@ document.addEventListener("DOMContentLoaded", () => {
   //-------------------------------------------
   // Drag & Drop Logic for Fields
   //-------------------------------------------
-  // Mark each field in the left sidebar as draggable
+  console.log("Setting up drag and drop for fields...");
+  // Ensure all current draggable fields have dragstart events
   document.querySelectorAll('.draggable-field').forEach(field => {
     field.addEventListener('dragstart', (e) => {
-      // Transfer the field's data attribute
+      console.log("dragstart: Field", field.getAttribute('data-field'), "is being dragged.");
       e.dataTransfer.setData('text/plain', field.getAttribute('data-field'));
     });
   });
@@ -309,10 +346,9 @@ document.addEventListener("DOMContentLoaded", () => {
       e.preventDefault();
       zone.classList.remove('dragover');
 
-      // Get the dragged field name
       const fieldName = e.dataTransfer.getData('text/plain');
+      console.log("drop: Field", fieldName, "dropped into", zone.id);
 
-      // Create a new element to display the field
       const newField = document.createElement('div');
       newField.className = 'axis-field';
       newField.textContent = fieldName;

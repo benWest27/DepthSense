@@ -1,6 +1,6 @@
 # Use an official Node.js runtime as the base image
 FROM node:18-alpine
-
+RUN apk update && apk add --no-cache curl
 # Set the working directory in the container
 WORKDIR /usr/src/app
 

@@ -129,8 +129,7 @@
     font-weight: bold;
     margin-bottom: 5px;
   }
-  
-  /* The actual drop-zone area */
+  /* The drop-zone area */
   .drop-zone {
     background: #fafafa;
     border: 1px dashed #ccc;
