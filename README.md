@@ -1,24 +1,4 @@
 
-  postgres:
-    image: postgres:14
-    restart: always
-    container_name: postgres_db
-    environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: depthsense
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-    networks:
-      - app-network
-    healthcheck:
-      test: ["CMD", "pg_isready", "-U", "admin"]
-      interval: 10s
-      retries: 5
-      start_period: 10s
-
 
 # DepthSense
 data visualization tool for using Parallax to create 3D visuals
