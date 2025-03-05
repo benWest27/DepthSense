@@ -193,3 +193,7 @@
     border: 2px dashed #999;
   }
   
+  .layer-tab.selected {
+    background: #007BFF;
+    color: #fff;
+  }
