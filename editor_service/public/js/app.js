@@ -3,7 +3,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const canvas = document.getElementById("visualization-canvas");
   const ctx = canvas.getContext("2d");
-
+  // INITIAL STATE: No layers are created until Test is clicked.
   let state = {
     focalPoint: { x: 0.5, y: 0.5 },
     zoom: 1,
@@ -16,15 +16,47 @@ document.addEventListener("DOMContentLoaded", () => {
     canvasWidth: 600,
     canvasHeight: 600,
     layerSpacing: 20,
+    // Replacing empty layers array with default layer 1 definition.
     layers: [
-      // Use generateMockLayer to create fallback data and assign z = 0.1
-      generateMockLayer(0.1, "rgba(255, 0, 0, 0.8)", 20, [0, 100], [0, 100])
+      { 
+        id: 1, 
+        z: 0.1, 
+        rowField: null, 
+        colField: null, 
+        xAxisRange: [0, 100], 
+        yAxisRange: [0, 100] 
+      }
     ],
-    currentLayerIndex: 0
+    currentLayerIndex: 0 // Default layer selected.
   };
   
   // Global CSV data array
-  let mockDataSource = [];
+  let DataSource = [];
+
+    // ---------------------------
+  // Function: generateMockLayer
+  // Returns an object representing a layer, with fallback data, axis ranges, and a defined z value.
+  function generateMockLayer(id, z, color, numPoints, xRange, yRange) {
+    console.log("generateMockLayer: Generating fallback layer with id =", id, "z =", z);
+    const data = [];
+    for (let i = 0; i < numPoints; i++) {
+      const x = i / (numPoints - 1);
+      const y = 0.5 + 0.4 * Math.sin(x * Math.PI * 2) + (Math.random() - 0.5) * 0.1;
+      data.push({ x, y });
+    }
+    return {
+      id: id,
+      z: z,
+      color: color,
+      data: data,
+      xAxisRange: xRange || [0, 100],
+      yAxisRange: yRange || [0, 100],
+      rowField: null, // to be set when a field is dropped
+      colField: null  // to be set when a field is dropped
+    };
+  }
+
+
 
   // Fetch CSV mock data from data service endpoint
   function fetchMockData() {
@@ -39,27 +71,34 @@ document.addEventListener("DOMContentLoaded", () => {
       })
       .then(data => {
         console.log("fetchMockData: Data received:", data);
-        mockDataSource = data;
+        DataSource = data;
         updateDataFields();
         render();
       })
       .catch(error => console.error("fetchMockData: Error fetching mock data:", error));
   }
   
-  // Update the Fields container by detecting each field's type using the first row.
+ // ------------------------------------------------------------------
+  // Function: updateDataFields
+  // Updates the fields container by detecting each field's type using the first row.
   function updateDataFields() {
     console.log("updateDataFields: Updating fields based on CSV data.");
     const fieldsContainer = document.getElementById('fields-container');
     fieldsContainer.innerHTML = "";
-    if (mockDataSource.length > 0) {
-      const firstRow = mockDataSource[0];
+    if (DataSource.length > 0) {
+      const firstRow = DataSource[0];
       Object.keys(firstRow).forEach(field => {
         let value = firstRow[field].trim();
         let type = "string";
         if (!isNaN(parseFloat(value)) && isFinite(value)) {
           type = "number";
-        } else if (!isNaN(Date.parse(value)) && /^[0-9]{1,2}\/[0-9]{1,2}\/[0-9]{2,4}$/.test(value)) {
+        } else if (
+          !isNaN(Date.parse(value)) &&
+          (/^[0-9]{1,2}\/[0-9]{1,2}\/[0-9]{2,4}(?:\s+[0-9]{2}:[0-9]{2}:[0-9]{2})?$/.test(value) ||
+           /^[0-9]{4}-[0-9]{2}-[0-9]{2}(?:\s+[0-9]{2}:[0-9]{2}:[0-9]{2})?$/.test(value))
+        ) {
           type = "date";
+          console.log(`updateDataFields: Detected date format for field '${field}'.`);
         }
         const fieldDiv = document.createElement('div');
         fieldDiv.className = 'draggable-field';
@@ -78,8 +117,8 @@ document.addEventListener("DOMContentLoaded", () => {
       console.log("updateDataFields: No data available to extract fields.");
     }
   }
-
-  // Listen to data source selection changes.
+// ---------------------------
+  // Data Source selection changes.
   const dataSourceSelect = document.getElementById("data-source-select");
   dataSourceSelect.addEventListener("change", (e) => {
     const selectedSource = e.target.value;
@@ -195,7 +234,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const tab = document.createElement("div");
       tab.className = "layer-tab";
       if (index === state.currentLayerIndex) tab.classList.add("selected");
-      tab.textContent = `Layer ${layer.id}`;
+      tab.textContent = `Layer ${index}`;
       tab.dataset.layerIndex = index;
       tab.addEventListener("click", () => {
         state.currentLayerIndex = index;
@@ -228,6 +267,22 @@ document.addEventListener("DOMContentLoaded", () => {
     render();
   });
   
+// ---------------------------
+  // Test Button: When clicked, generate a set of mock layers.
+  // All fallback/mock data is hidden until this button is clicked.
+  document.getElementById("test").addEventListener("click", () => {
+    console.log("Test button clicked: Generating test layers.");
+    // Generate, for example, three test layers with sequential z values.
+    state.layers = [
+      generateMockLayer(0.1, "rgba(255, 0, 0, 0.8)", 20, [0, 100], [0, 100]),
+      generateMockLayer(0.2, "rgba(0, 255, 0, 0.8)", 20, [0, 150], [0, 150]),
+      generateMockLayer(0.3, "rgba(0, 0, 255, 0.8)", 20, [0, 200], [0, 200])
+    ];
+    state.currentLayerIndex = 0;
+    updateLayerPanel();
+    updateAxisDropZones();
+    render();
+  });
 
 
   // Update axis drop zones to reflect the mapping for the current layer.
@@ -265,131 +320,178 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
+  // Updated drop event listener for columnDropZone.
   columnDropZone.addEventListener('drop', (e) => {
     e.preventDefault();
     columnDropZone.classList.remove('dragover');
     const data = JSON.parse(e.dataTransfer.getData('text/plain'));
     console.log("drop: Field", data.field, "with type", data.type, "dropped into column-drop-zone");
-    state.layers[state.currentLayerIndex].colField = { field: data.field, type: data.type };
-    updateAxisDropZones();
-    render();
+    // Use the layer selected via the Layer Panel.
+    if (state.currentLayerIndex < 0 && state.layers.length > 0) {
+      state.currentLayerIndex = 0;
+    }
+    if (state.currentLayerIndex >= 0 && state.layers[state.currentLayerIndex]) {
+      state.layers[state.currentLayerIndex].colField = { field: data.field, type: data.type };
+      updateAxisDropZones();
+      render();
+    } else {
+      console.error("No current layer selected. Cannot assign colField");
+    }
   });
 
+  // Updated drop event listener for rowDropZone.
   rowDropZone.addEventListener('drop', (e) => {
     e.preventDefault();
     rowDropZone.classList.remove('dragover');
     const data = JSON.parse(e.dataTransfer.getData('text/plain'));
     console.log("drop: Field", data.field, "with type", data.type, "dropped into row-drop-zone");
-    state.layers[state.currentLayerIndex].rowField = { field: data.field, type: data.type };
-    updateAxisDropZones();
-    render();
+    // Use the layer selected via the Layer Panel.
+    if (state.currentLayerIndex < 0 && state.layers.length > 0) {
+      state.currentLayerIndex = 0;
+    }
+    if (state.currentLayerIndex >= 0 && state.layers[state.currentLayerIndex]) {
+      state.layers[state.currentLayerIndex].rowField = { field: data.field, type: data.type };
+      updateAxisDropZones();
+      render();
+    } else {
+      console.error("No current layer selected. Cannot assign rowField");
+    }
   });
 
-// Draw axes (with tickers) for a specific layer
-function drawLayerAxes(layer) {
-  console.log("drawLayerAxes: Drawing axes for layer", layer.id, "with z =", layer.z);
-  const margin = 40;
-  ctx.save();
-  ctx.strokeStyle = "#333";
-  ctx.fillStyle = "#333";
-  ctx.lineWidth = 1;
+  // Draw axes (with tickers) for a specific layer.
+  function drawLayerAxes(layer) {
+    console.log("drawLayerAxes: Drawing axes for layer", layer.id, "with z =", layer.z);
+    const margin = 40;
+    ctx.save();
+    ctx.strokeStyle = "#333";
+    ctx.fillStyle = "#333";
+    ctx.lineWidth = 1;
 
-  // --- Horizontal Axis ---
-  const xAxisY = canvas.height - margin;
-  console.log("drawLayerAxes: Calculated xAxisY =", xAxisY);
-  ctx.beginPath();
-  ctx.moveTo(margin, xAxisY);
-  ctx.lineTo(canvas.width - margin, xAxisY);
-  ctx.stroke();
-  console.log("drawLayerAxes: Drew horizontal axis from x =", margin, "to", canvas.width - margin);
-
-  const tickCount = 10;
-  const tickSpacing = (canvas.width - 2 * margin) / tickCount;
-  console.log("drawLayerAxes: Calculated tickSpacing =", tickSpacing);
-  const xRange = layer.xAxisRange;
-  console.log("drawLayerAxes: xAxisRange =", xRange);
-  const xValueStep = (xRange[1] - xRange[0]) / tickCount;
-  console.log("drawLayerAxes: xValueStep =", xValueStep);
-
-  for (let i = 0; i <= tickCount; i++) {
-    const x = margin + i * tickSpacing;
-    console.log("drawLayerAxes: Horizontal tick", i, "at x =", x);
+    // --- Horizontal Axis ---
+    const xAxisY = canvas.height - margin;
+    console.log("drawLayerAxes: Calculated xAxisY =", xAxisY);
     ctx.beginPath();
-    ctx.moveTo(x, xAxisY);
-    ctx.lineTo(x, xAxisY + 5);
+    ctx.moveTo(margin, xAxisY);
+    ctx.lineTo(canvas.width - margin, xAxisY);
     ctx.stroke();
-    const tickValue = xRange[0] + i * xValueStep;
-    ctx.font = "10px sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText(tickValue.toFixed(0), x, xAxisY + 15);
-    console.log("drawLayerAxes: Horizontal tick", i, "label =", tickValue.toFixed(0));
+    console.log("drawLayerAxes: Drew horizontal axis from x =", margin, "to", canvas.width - margin);
+
+    const tickCount = 10;
+    const tickSpacing = (canvas.width - 2 * margin) / tickCount;
+    console.log("drawLayerAxes: Calculated tickSpacing =", tickSpacing);
+    const xRange = layer.xAxisRange;
+    console.log("drawLayerAxes: xAxisRange =", xRange);
+    const xValueStep = (xRange[1] - xRange[0]) / tickCount;
+    console.log("drawLayerAxes: xValueStep =", xValueStep);
+
+    for (let i = 0; i <= tickCount; i++) {
+      const x = margin + i * tickSpacing;
+      console.log("drawLayerAxes: Horizontal tick", i, "at x =", x);
+      ctx.beginPath();
+      ctx.moveTo(x, xAxisY);
+      ctx.lineTo(x, xAxisY + 5);
+      ctx.stroke();
+      let tickValue = xRange[0] + i * xValueStep;
+      if (layer.rowField && layer.rowField.type === "date") {
+        tickValue = new Date(tickValue).toLocaleString();
+      } else {
+        tickValue = tickValue.toFixed(0);
+      }
+      ctx.font = "10px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(tickValue, x, xAxisY + 15);
+      console.log("drawLayerAxes: Horizontal tick", i, "label =", tickValue);
+    }
+
+    // --- Vertical Axis ---
+    const yAxisX = margin;
+    console.log("drawLayerAxes: Calculated yAxisX =", yAxisX);
+    ctx.beginPath();
+    ctx.moveTo(yAxisX, margin);
+    ctx.lineTo(yAxisX, canvas.height - margin);
+    ctx.stroke();
+    console.log("drawLayerAxes: Drew vertical axis from y =", margin, "to", canvas.height - margin);
+
+    const yTickSpacing = (canvas.height - 2 * margin) / tickCount;
+    console.log("drawLayerAxes: Calculated yTickSpacing =", yTickSpacing);
+    const yRange = layer.yAxisRange;
+    console.log("drawLayerAxes: yAxisRange =", yRange);
+    const yValueStep = (yRange[1] - yRange[0]) / tickCount;
+    console.log("drawLayerAxes: yValueStep =", yValueStep);
+
+    for (let i = 0; i <= tickCount; i++) {
+      const y = canvas.height - margin - i * yTickSpacing;
+      console.log("drawLayerAxes: Vertical tick", i, "at y =", y);
+      ctx.beginPath();
+      ctx.moveTo(yAxisX, y);
+      ctx.lineTo(yAxisX - 5, y);
+      ctx.stroke();
+      let tickValue = yRange[0] + i * yValueStep;
+      if (layer.colField && layer.colField.type === "date") {
+        tickValue = new Date(tickValue).toLocaleString();
+      } else {
+        tickValue = tickValue.toFixed(0);
+      }
+      ctx.font = "10px sans-serif";
+      ctx.textAlign = "right";
+      ctx.fillText(tickValue, yAxisX - 7, y + 3);
+      console.log("drawLayerAxes: Vertical tick", i, "label =", tickValue);
+    }
+
+    ctx.restore();
   }
 
-  // --- Vertical Axis ---
-  const yAxisX = margin;
-  console.log("drawLayerAxes: Calculated yAxisX =", yAxisX);
-  ctx.beginPath();
-  ctx.moveTo(yAxisX, margin);
-  ctx.lineTo(yAxisX, canvas.height - margin);
-  ctx.stroke();
-  console.log("drawLayerAxes: Drew vertical axis from y =", margin, "to", canvas.height - margin);
+  // Render layers with parallax + zoom.
+  // The algorithm:
+  // 1. If CSV mapping exists for the current layer and CSV data is loaded, build distinct marks,
+  //    compute axis ranges, and store them in the current layer.
+  // 2. Compute parallax transform for each layer using:
+  //    effectiveZ = layer.z - state.layerOffset
+  //    perspective = 1 / (1 + effectiveZ)
+  //    parallaxX = (focalPoint.x - 0.5) * canvas.width * (1 - perspective)
+  //    parallaxY = (focalPoint.y - 0.5) * canvas.height * (1 - perspective)
+  // 3. Draw each layer's axes and data marks using the calculated transforms.
+  // 4. Only layers that have data (or CSV mapping) are rendered.
 
-  const yTickSpacing = (canvas.height - 2 * margin) / tickCount;
-  console.log("drawLayerAxes: Calculated yTickSpacing =", yTickSpacing);
-  const yRange = layer.yAxisRange;
-  console.log("drawLayerAxes: yAxisRange =", yRange);
-  const yValueStep = (yRange[1] - yRange[0]) / tickCount;
-  console.log("drawLayerAxes: yValueStep =", yValueStep);
-
-  for (let i = 0; i <= tickCount; i++) {
-    const y = canvas.height - margin - i * yTickSpacing;
-    console.log("drawLayerAxes: Vertical tick", i, "at y =", y);
-    ctx.beginPath();
-    ctx.moveTo(yAxisX, y);
-    ctx.lineTo(yAxisX - 5, y);
-    ctx.stroke();
-    const tickValue = yRange[0] + i * yValueStep;
-    ctx.font = "10px sans-serif";
-    ctx.textAlign = "right";
-    ctx.fillText(tickValue.toFixed(0), yAxisX - 7, y + 3);
-    console.log("drawLayerAxes: Vertical tick", i, "label =", tickValue.toFixed(0));
+  // New function to extract distinct marks from CSV mapping.
+  function extractDistinctMarks(currentLayer) {
+    console.log("extractDistinctMarks: Using CSV mapping for current layer:", currentLayer);
+    const isRowDate = currentLayer.rowField.type === "date";
+    const isColDate = currentLayer.colField.type === "date";
+    const distinctMarks = {};
+    DataSource.forEach(row => {
+      let rowVal = isRowDate
+        ? Date.parse(row[currentLayer.rowField.field])
+        : parseFloat(row[currentLayer.rowField.field]);
+      let colVal = isColDate
+        ? Date.parse(row[currentLayer.colField.field])
+        : parseFloat(row[currentLayer.colField.field]);
+      if (!isNaN(rowVal) && !isNaN(colVal)) {
+        const key = `${rowVal}-${colVal}`;
+        if (!distinctMarks[key]) {
+          distinctMarks[key] = { rowVal, colVal };
+        }
+      }
+    });
+    const marks = Object.values(distinctMarks);
+    console.log("extractDistinctMarks: Number of distinct marks =", marks.length);
+    if (marks.length === 0) {
+      console.log("extractDistinctMarks: No distinct marks found.");
+      return null;
+    }
+    return marks;
   }
 
-  ctx.restore();
-}
-
-  // Render layers with parallax + zoom (draw farthest layers first)
   function render() {
     console.log("render: Rendering layers with state:", state);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
+
     const currentLayer = state.layers[state.currentLayerIndex];
-    if (currentLayer.rowField && currentLayer.colField && mockDataSource.length > 0) {
+    if (currentLayer && currentLayer.rowField && currentLayer.colField && DataSource.length > 0) {
       console.log("render: Using CSV mapping for current layer:", currentLayer);
-      const isRowDate = currentLayer.rowField.type === "date";
-      const isColDate = currentLayer.colField.type === "date";
-      const distinctMarks = {};
-      mockDataSource.forEach(row => {
-        let rowVal = isRowDate
-          ? Date.parse(row[currentLayer.rowField.field])
-          : parseFloat(row[currentLayer.rowField.field]);
-        let colVal = isColDate
-          ? Date.parse(row[currentLayer.colField.field])
-          : parseFloat(row[currentLayer.colField.field]);
-        if (!isNaN(rowVal) && !isNaN(colVal)) {
-          const key = `${rowVal}-${colVal}`;
-          if (!distinctMarks[key]) {
-            distinctMarks[key] = { rowVal, colVal };
-          }
-        }
-      });
-      const marks = Object.values(distinctMarks);
-      console.log("render: Number of distinct marks =", marks.length);
-      if (marks.length === 0) {
-        console.log("render: No distinct marks found.");
-        return;
-      }
-      
+      const marks = extractDistinctMarks(currentLayer);
+      if (!marks) return;
+
       // Calculate axis ranges from marks.
       const rowValues = marks.map(m => m.rowVal);
       const colValues = marks.map(m => m.colVal);
@@ -397,12 +499,12 @@ function drawLayerAxes(layer) {
       const rowMaxVal = Math.max(...rowValues);
       const colMinVal = Math.min(...colValues);
       const colMaxVal = Math.max(...colValues);
-      console.log("render: Computed axis ranges:", { rowMinVal, rowMaxVal, colMinVal, colMaxVal });
-      
+      console.log("render: Computed CSV axis ranges:", { rowMinVal, rowMaxVal, colMinVal, colMaxVal });
+
       // Store computed ranges in the current layer.
       currentLayer.xAxisRange = [rowMinVal, rowMaxVal];
       currentLayer.yAxisRange = [colMinVal, colMaxVal];
-      
+
       // Compute parallax transform for the current layer.
       let effectiveZ = currentLayer.z - state.layerOffset;
       if (effectiveZ < 0) effectiveZ = 0;
@@ -411,82 +513,60 @@ function drawLayerAxes(layer) {
       const parallaxY = (state.focalPoint.y - 0.5) * canvas.height * (1 - perspective);
       console.log("render: Current layer effectiveZ =", effectiveZ, "perspective =", perspective);
       console.log("render: Current layer parallax offset: X =", parallaxX, "Y =", parallaxY);
-      
-      // Draw axes for the current layer using its parallax transform.
+
+      // Draw axes for the current layer.
       ctx.save();
       ctx.translate(parallaxX, parallaxY);
       drawLayerAxes(currentLayer);
       ctx.restore();
-      
-      // Draw marks for each layer.
+
+      // Draw marks for each layer that has a CSV mapping.
       state.layers.forEach(layer => {
+        if (!layer.rowField || !layer.colField) {
+          console.log(`render: Skipping Layer ${layer.id} (no CSV mapping).`);
+          return;
+        }
         let layerEffectiveZ = layer.z - state.layerOffset;
         if (layerEffectiveZ < 0) layerEffectiveZ = 0;
         const layerPerspective = 1 / (1 + layerEffectiveZ);
         const layerParallaxX = (state.focalPoint.x - 0.5) * canvas.width * (1 - layerPerspective);
         const layerParallaxY = (state.focalPoint.y - 0.5) * canvas.height * (1 - layerPerspective);
-        
         console.log(`render: Layer ${layer.id} effectiveZ = ${layerEffectiveZ}, perspective = ${layerPerspective}`);
         console.log(`render: Layer ${layer.id} parallax offset: X = ${layerParallaxX}, Y = ${layerParallaxY}`);
-        
+
         ctx.save();
         ctx.translate(layerParallaxX, layerParallaxY);
         // Use axis ranges stored in the layer; if not present, fallback to current layer's.
         const xRange = layer.xAxisRange || [rowMinVal, rowMaxVal];
         const yRange = layer.yAxisRange || [colMinVal, colMaxVal];
-        
+
         marks.forEach(mark => {
-          // Formula: 
-          // x_pixel = ((mark_value - min_value) / (max_value - min_value)) * (canvas.width - 80) + 40
-          const x = ((mark.rowVal - xRange[0]) / (xRange[1] - xRange[0])) * (canvas.width - 80) + 40;
-          // y_pixel = ((mark_value - min_value) / (max_value - min_value)) * (canvas.height - 80) + 40 + layer vertical offset
-          const y = ((mark.colVal - yRange[0]) / (yRange[1] - yRange[0])) * (canvas.height - 80) + 40 + (layer.id - 1) * state.layerSpacing;
+          // For the x position (row axis):
+          const rowRange = xRange[1] - xRange[0];
+          const safeRowRange = rowRange === 0 ? 1 : rowRange;
+          const x = ((mark.rowVal - xRange[0]) / safeRowRange) * (canvas.width - 80) + 40;
+        
+          // For the y position (column axis):
+          const colRange = yRange[1] - yRange[0];
+          const safeColRange = colRange === 0 ? 1 : colRange;
+          const y = ((mark.colVal - yRange[0]) / safeColRange) * (canvas.height - 80) + 40 + (layer.id - 1) * state.layerSpacing;
+          
           ctx.beginPath();
           ctx.arc(x, y, state.markerSize, 0, Math.PI * 2);
           ctx.fillStyle = layer.color;
           ctx.fill();
-          console.log(`render: Layer ${layer.id} mark at data (rowVal: ${mark.rowVal}, colVal: ${mark.colVal}) -> pixel (x: ${x.toFixed(2)}, y: ${y.toFixed(2)})`);
+          console.log(`render: Layer ${layer.id} mark: data (rowVal: ${mark.rowVal}, colVal: ${mark.colVal}) -> pixel (x: ${x.toFixed(2)}, y: ${y.toFixed(2)})`);
         });
         // Draw this layer's axes.
         drawLayerAxes(layer);
         ctx.restore();
       });
-      
+
     } else {
-      console.log("render: No CSV mapping exists; using fallback generated data.");
-      // Fallback: Render each layer using generated data.
-      state.layers.sort((a, b) => (b.z - state.layerOffset) - (a.z - state.layerOffset));
-      state.layers.forEach(layer => {
-        if (!layer.data || !Array.isArray(layer.data)) {
-          console.log(`render: Layer ${layer.id} has no data; generating fallback data.`);
-          const fallback = generateMockLayer(layer.z, layer.color, 20, [0, 100], [0, 100]);
-          layer.data = fallback.data;
-          layer.xAxisRange = fallback.xAxisRange;
-          layer.yAxisRange = fallback.yAxisRange;
-        }
-        let effectiveZ = layer.z - state.layerOffset;
-        if (effectiveZ < 0) effectiveZ = 0;
-        const perspective = 1 / (1 + effectiveZ);
-        const parallaxX = (state.focalPoint.x - 0.5) * canvas.width * (1 - perspective);
-        const parallaxY = (state.focalPoint.y - 0.5) * canvas.height * (1 - perspective);
-        console.log(`render (fallback): Layer ${layer.id} effectiveZ = ${effectiveZ}, perspective = ${perspective}`);
-        ctx.save();
-        ctx.translate(parallaxX, parallaxY);
-        ctx.translate(canvas.width / 2, canvas.height / 2);
-        ctx.scale(state.zoom * perspective, state.zoom * perspective);
-        ctx.translate(-canvas.width / 2, -canvas.height / 2);
-        layer.data.forEach(point => {
-          ctx.beginPath();
-          ctx.arc(point.x * canvas.width, point.y * canvas.height, state.markerSize, 0, Math.PI * 2);
-          ctx.fillStyle = layer.color;
-          ctx.fill();
-        });
-        drawLayerAxes(layer);
-        ctx.restore();
-      });
+      console.log("render: No CSV mapping exists for current layer; skipping CSV rendering.");
     }
+    console.log("render: END");
   }
-  
     // Render layers with parallax + zoom (draw farthest layers first)
 //   function render() {
 //     console.log("render: Rendering layers...");
