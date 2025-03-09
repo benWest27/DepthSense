@@ -5,6 +5,8 @@
   <title>DepthSense Editor</title>
   <!-- Link to external CSS -->
   <link rel="stylesheet" href="css/styles.css">
+  <!-- Load Chart.js before your app.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <!-- Defer script so it runs after DOM is parsed -->
   <script src="js/app.js" defer></script>
 </head>
@@ -63,9 +65,12 @@
         </div>
       </div>
 
-      <!-- Canvas Container -->
+      <!-- Updated Chart Container for layered parallax rendering -->
       <div id="canvas-container">
-        <canvas id="visualization-canvas"></canvas>
+        <!-- Static layer: renders axes, grid, etc. -->
+        <canvas id="static-layer"></canvas>
+        <!-- Dynamic layer: renders Chart.js charts (data updates) -->
+        <canvas id="dynamic-layer"></canvas>
       </div>
 
     </main>
