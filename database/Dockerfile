@@ -6,10 +6,12 @@ ENV POSTGRES_USER=admin
 ENV POSTGRES_PASSWORD=password
 
 # Copy initialization scripts
+# init.sql will run against the depthsense database.
 COPY ./database/init.sql /docker-entrypoint-initdb.d/
+
+# init-admin.sh will create the additional "admin" database.
+COPY ./database/init-admin.sh /docker-entrypoint-initdb.d/
+RUN chmod +x /docker-entrypoint-initdb.d/init-admin.sh
 
 # Expose PostgreSQL port
 EXPOSE 5432
-
-# Ensure both databases exist at startup
-RUN echo "CREATE DATABASE admin;" >> /docker-entrypoint-initdb.d/00_create_admin_db.sql

@@ -93,6 +93,28 @@ const deleteVisualization = async (id) => {
   }
 };
 
+// Replace the createTable function with the following:
+
+const createTable = async () => {
+  const query = `
+    CREATE TABLE IF NOT EXISTS visualizations (
+      id SERIAL PRIMARY KEY,
+      title VARCHAR(255) NOT NULL,
+      description TEXT,
+      data JSONB NOT NULL,
+      created_by INT REFERENCES users(id) ON DELETE SET NULL,
+      dataset_id INT REFERENCES datasets(id) ON DELETE CASCADE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `;
+  try {
+    await pool.query(query);
+    logger.info('✅ Visualizations table is ready.');
+  } catch (error) {
+    logger.error('❌ Failed to initialize visualizations table:', error);
+  }
+};
+
 // Export functions and pool
 module.exports = {
   pool,
@@ -101,4 +123,5 @@ module.exports = {
   getVisualizationById,
   updateVisualization,
   deleteVisualization,
+  createTable,
 };

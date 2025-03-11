@@ -17,6 +17,7 @@ const datasetRoutes = require('./routes/datasets');
 const userRoutes = require('./routes/users');
 const visualizationRoutes = require('./routes/visualization');
 const mockDataRoutes = require('./routes/mockdata');
+const uploadRoutes = require('./routes/upload');
 
 // Register Routes
 app.use('/api/health', healthRoutes);
@@ -24,6 +25,7 @@ app.use('/api/datasets', datasetRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/visualization', visualizationRoutes);
 app.use('/api/data/mock', mockDataRoutes);
+app.use('/api/data', uploadRoutes);
 
 // Start Server
 app.listen(port, '0.0.0.0', () => {

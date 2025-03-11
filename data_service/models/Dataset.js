@@ -55,11 +55,15 @@ const getAllDatasets = async () => {
 
 // Get Dataset by ID
 const getDatasetById = async (id) => {
+  const intId = parseInt(id, 10);
+  if (isNaN(intId)) {
+    throw new Error("Invalid dataset id");
+  }
   try {
-    const result = await pool.query('SELECT * FROM datasets WHERE id = $1', [id]);
+    const result = await pool.query('SELECT * FROM datasets WHERE id = $1', [intId]);
     return result.rows[0];
   } catch (error) {
-    logger.error(`❌ Error fetching dataset with ID ${id}:`, error);
+    logger.error(`❌ Error fetching dataset with ID ${intId}:`, error);
     throw error;
   }
 };
