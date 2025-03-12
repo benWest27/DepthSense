@@ -18,6 +18,7 @@ const userRoutes = require('./routes/users');
 const visualizationRoutes = require('./routes/visualization');
 const mockDataRoutes = require('./routes/mockdata');
 const uploadRoutes = require('./routes/upload');
+const rowsRoutes = require('./routes/rows');
 
 // Register Routes
 app.use('/api/health', healthRoutes);
@@ -26,6 +27,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/visualization', visualizationRoutes);
 app.use('/api/data/mock', mockDataRoutes);
 app.use('/api/data', uploadRoutes);
+app.use('/api/data/rows', rowsRoutes); // NEW: Mount CSV rows route
 
 // Start Server
 app.listen(port, '0.0.0.0', () => {

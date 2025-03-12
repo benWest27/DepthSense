@@ -25,45 +25,76 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // NEW: Add function fetchDataForSource to load dataset content by ID
   function fetchDataForSource(sourceId) {
-    fetch(`http://localhost:5003/api/datasets/${sourceId}`)
+    return fetch(`http://localhost:5003/api/datasets/${sourceId}`)
       .then(resp => {
         if (!resp.ok) throw new Error("Failed to fetch dataset " + sourceId);
         return resp.json();
       })
       .then(data => {
-        // Assume the returned data is an array of CSV rows.
-        DataSource = data;
-        updateFieldsFromData();
-        render();
+        console.log("Dataset fetched for source", sourceId, ":", data);
+        // Now fetch the full CSV rows by calling the new endpoint.
+        return fetch(`http://localhost:5003/api/data/rows/${data.id}`)
+          .then(resp => {
+            if (!resp.ok) throw new Error("Failed to fetch CSV rows for dataset " + data.id);
+            return resp.json();
+          })
+          .then(csvRows => {
+            DataSource = csvRows;
+            console.log("CSV rows fetched for dataset", data.id, ":", csvRows);
+            updateFieldsFromData();
+            render();
+            return data;
+          });
       })
-      .catch(err => console.error("fetchDataForSource:", err));
+      .catch(err => {
+        console.error("fetchDataForSource:", err);
+        throw err;
+      });
   }
 
   // NEW: Helper function to populate the fields container from DataSource
   function updateFieldsFromData() {
     const fieldsContainer = document.getElementById("fields-container");
+    console.log("updateFieldsFromData: Clearing fields container.");
     fieldsContainer.innerHTML = "";
+    
     if (DataSource.length > 0) {
       const sampleRow = DataSource[0];
+      console.log("updateFieldsFromData: Sample row data:", sampleRow);
+      
       Object.keys(sampleRow).forEach(field => {
-        let value = sampleRow[field].trim();
+        console.log("updateFieldsFromData: Processing field:", field);
+        // Ensure value is a string
+        let value = sampleRow[field].toString().trim();
+        console.log("updateFieldsFromData: Value for", field, "=", value);
+        
         let type = "string";
         if (!isNaN(parseFloat(value)) && isFinite(value)) {
           type = "number";
         } else if (!isNaN(Date.parse(value))) {
           type = "date";
         }
+        console.log("updateFieldsFromData: Field", field, "determined type =", type);
+        
+        // Create a draggable element and add an extra class if type is string
         const fieldEl = document.createElement("div");
-        fieldEl.className = "draggable-field";
+        fieldEl.className = "draggable-field" + (type === "string" ? " draggable-string" : "");
         fieldEl.setAttribute("draggable", "true");
         fieldEl.setAttribute("data-field", field);
         fieldEl.setAttribute("data-type", type);
         fieldEl.innerHTML = `${field} <span class="field-type">${type}</span>`;
+        
         fieldsContainer.appendChild(fieldEl);
+        console.log("updateFieldsFromData: Appended field element for", field);
+        
         fieldEl.addEventListener("dragstart", (e) => {
+          console.log("updateFieldsFromData: Dragstart event for field", field);
           e.dataTransfer.setData("text/plain", JSON.stringify({ field, type }));
         });
       });
+      console.log("updateFieldsFromData: Completed processing all fields.");
+    } else {
+      console.log("updateFieldsFromData: DataSource is empty, no fields to process.");
     }
   }
 
@@ -95,8 +126,14 @@ document.addEventListener("DOMContentLoaded", () => {
   dataSourceSelect.addEventListener("change", (e) => {
     const selectedSource = e.target.value;
     console.log("Data Source selected:", selectedSource);
+    const fieldsContainer = document.getElementById("fields-container");
     if (selectedSource) {
-      fetchDataForSource(selectedSource);
+      // fetchDataForSource fetches the dataset and calls updateFieldsFromData
+      fetchDataForSource(selectedSource)
+        .then(() => {
+          console.log("Fields container updated with dataset fields, ready for drag and drop.");
+        })
+        .catch(err => console.error(err));
     } else {
       fieldsContainer.innerHTML = "";
     }
@@ -123,40 +160,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       })
       .catch(err => console.error(err));
-  }
-
-  // In initUploadButton, pass the newly uploaded source id to fetchDataSourceList.
-  function initUploadButton() {
-    const uploadButton = document.getElementById("upload");
-    const fileInput = document.createElement("input");
-    fileInput.type = "file";
-    fileInput.accept = ".csv";
-    fileInput.style.display = "none";
-    document.body.appendChild(fileInput);
-    uploadButton.addEventListener("click", () => {
-      fileInput.click();
-    });
-    fileInput.addEventListener("change", () => {
-      const file = fileInput.files[0];
-      if (file) {
-        const formData = new FormData();
-        formData.append("csvfile", file);
-        fetch("http://localhost:5003/api/data/upload", {
-          method: "POST",
-          body: formData
-        })
-          .then(resp => {
-            if (!resp.ok) throw new Error("Upload failed");
-            return resp.json();
-          })
-          .then(result => {
-            console.log("Upload successful:", result);
-            // Assume the result contains newSourceId property for the uploaded dataset.
-            fetchDataSourceList(result.sourceId);
-          })
-          .catch(err => console.error(err));
-      }
-    });
   }
 
   // NEW: Function to handle CSV file upload through the "Upload" button
@@ -397,6 +400,11 @@ document.addEventListener("DOMContentLoaded", () => {
     columnDropZone.classList.remove('dragover');
     const data = JSON.parse(e.dataTransfer.getData('text/plain'));
     console.log("drop: Field", data.field, "with type", data.type, "dropped into column-drop-zone");
+    // Guard: Ensure a current layer exists.
+    if (state.currentLayerIndex < 0 || !state.layers[state.currentLayerIndex]) {
+      console.error("No current layer defined to map column field.");
+      return;
+    }
     state.layers[state.currentLayerIndex].colField = { field: data.field, type: data.type };
     updateAxisDropZones();
     render();
@@ -407,6 +415,11 @@ document.addEventListener("DOMContentLoaded", () => {
     rowDropZone.classList.remove('dragover');
     const data = JSON.parse(e.dataTransfer.getData('text/plain'));
     console.log("drop: Field", data.field, "with type", data.type, "dropped into row-drop-zone");
+    // Guard: Ensure a current layer exists.
+    if (state.currentLayerIndex < 0 || !state.layers[state.currentLayerIndex]) {
+      console.error("No current layer defined to map row field.");
+      return;
+    }
     state.layers[state.currentLayerIndex].rowField = { field: data.field, type: data.type };
     updateAxisDropZones();
     render();

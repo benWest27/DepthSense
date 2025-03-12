@@ -31,10 +31,12 @@ const createTable = async () => {
 // Insert Data
 const insertDataset = async (name, value) => {
   try {
+    logger.info('Inserting dataset with name:', name, 'and value:', value);
     const result = await pool.query(
       'INSERT INTO datasets (name, value) VALUES ($1, $2) RETURNING *',
       [name, value]
     );
+    logger.info('✅ Dataset inserted successfully. result.rows =>', result.rows);
     return result.rows[0];
   } catch (error) {
     logger.error('❌ Error inserting dataset:', error);
@@ -46,6 +48,7 @@ const insertDataset = async (name, value) => {
 const getAllDatasets = async () => {
   try {
     const result = await pool.query('SELECT * FROM datasets ORDER BY created_at DESC');
+    logger.info('✅ Fetched all datasets successfully. result.rows =>', result.rows);
     return result.rows;
   } catch (error) {
     logger.error('❌ Error fetching datasets:', error);
