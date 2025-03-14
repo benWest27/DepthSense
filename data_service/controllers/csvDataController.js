@@ -13,9 +13,14 @@ async function getCSVRows(req, res) {
       [datasetId]
     );
     logger.info('CSV rows fetched successfully:', result.rows);
-    // If row.data is already an object, return it directly; otherwise, parse it.
+    // Instead of conditionally parsing, if our "data" field is already an object (e.g. from a JSONB column),
+    // simply return it.
     res.json(result.rows.map(row => {
-      return typeof row.data === 'string' ? JSON.parse(row.data) : row.data;
+      return (typeof row.data === 'string') 
+        ? JSON.parse(row.data) 
+        : row.data;
+      // Alternatively, if all data is stored as JSON, you can simply do:
+      // return row.data;
     }));
   } catch (err) {
     logger.error('Error fetching CSV rows:', err);
