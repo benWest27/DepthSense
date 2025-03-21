@@ -7,8 +7,12 @@
   <link rel="stylesheet" href="css/styles.css">
   <!-- Load Chart.js before your app.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- Defer script so it runs after DOM is parsed -->
-  <script src="js/app.js" defer></script>
+  <!-- Load parallaxChart.js first -->
+  <script src="js/parallaxChart.js" defer></script>
+  <!-- Then load upload.js (if needed) -->
+  <script src="js/upload.js" defer></script>
+  <!-- Finally, load editor.js which uses the globals -->
+  <script src="js/editor.js" defer></script>
 </head>
 <body>
 

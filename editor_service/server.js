@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const { Pool } = require('pg');
+const { pool } = require('./models/Database'); // Adjust if your pool is defined in another module.
 
 const shouldAuthenticate = process.env.NODE_ENV !== 'development';
 

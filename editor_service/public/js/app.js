@@ -33,49 +33,52 @@ document.addEventListener("DOMContentLoaded", () => {
   const zoomSlider = document.getElementById("zoom");
   const parallaxSlider = document.getElementById("layer-depth");
   // Global CSV data array
-  let Data = [];
   let DataSource = [];
   let dataheader = [];
 
-  /* --- Step 1: Data Source & Field Loading --- */
-  function initDataSource() {
-    dataSourceSelect.addEventListener("change", (e) => {
-      const selected = e.target.value;
-      if (selected === "csv") {
-        fetchDataSource();
-      } else {
-        fieldsContainer.innerHTML = "";
-      }
-    });
-  }
-  initDataSource();
+  const parallaxChart = require('../../services/parallaxChart.js')(state, container, dynamicCanvas, ctx);
+  const editorController = require('../../controllers/editorController.js')(state, parallaxChart, container, ctx);
+
+    /* --- Step 1: Data Source & Field Loading --- */
+    function initDataSource() {
+      dataSourceSelect.addEventListener("change", (e) => {
+        const selected = e.target.value;
+        if (selected === "csv") {
+          fetchDataSource();
+        } else {
+          fieldsContainer.innerHTML = "";
+        }
+      });
+    }
+    initDataSource();
 
   dataSourceSelect.addEventListener("change", (e) => {
     const selectedSourceId = e.target.value;
     if (selectedSourceId) {
       console.log("Data source selected:", selectedSourceId);
-      fetchDataForSource(selectedSourceId)
-        .then(data => {
-          console.log("Data fetched for source:", selectedSourceId, data);
-          Data = data;
-          //updateFieldsFromData();
-          //render();
-         // tryGenerateChartForActiveLayer();
+      editorController.fetchDataForSource(selectedSourceId)
+        .then(result => {
+          console.log("Data fetched for source:", selectedSourceId, result.dataset);
+          DataSource = result.csvRows;
+          // Use editorController to create fields array.
+          const fields = editorController.updateFieldsFromData(result.dataset.column_names, DataSource);
+          // Optionally, render the fields into the container (you may want to update DOM accordingly)
+          // ...existing code to update fieldsContainer...
+          render();
+          editorController.tryGenerateChartForActiveLayer(state, DataSource, parallaxChart, container, zoomSlider, currentMouseX, currentMouseY);
         })
         .catch(err => {
           console.error("Error fetching data for source:", selectedSourceId, err);
           alert("Failed to load data for the selected source.");
-          Data = [];
-         // updateFieldsFromData();
-         // render();
-        //  tryGenerateChartForActiveLayer();
+          DataSource = [];
+          render();
+          editorController.tryGenerateChartForActiveLayer(state, DataSource, parallaxChart, container, zoomSlider, currentMouseX, currentMouseY);
         });
     } else {
       console.log("No data source selected.");
-      Data = [];
-    //  updateFieldsFromData();
-    //  render();
-   //   tryGenerateChartForActiveLayer();
+      DataSource = [];
+      render();
+      editorController.tryGenerateChartForActiveLayer(state, DataSource, parallaxChart, container, zoomSlider, currentMouseX, currentMouseY);
     }
     // Instead of setting currentLayerIndex to -1, default to the first layer if available.
     state.currentLayerIndex = state.layers.length > 0 ? 0 : -1;
@@ -103,7 +106,7 @@ document.addEventListener("DOMContentLoaded", () => {
             DataSource = csvRows;
             console.log("CSV rows fetched for dataset", data.id, ":", csvRows);
             updateFieldsFromData();
-            //render();
+            render();
             return data;
           });
       })
@@ -122,7 +125,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (dataheader.length > 0) {
       dataheader.forEach(field => {
         let type = "string";
-        console.log("updateFieldsFromData: DataSource.length ", DataSource.length, " DataSource[0][field] ");
         if (DataSource.length > 0 && DataSource[0][field] !== undefined) {
           const sampleValue = DataSource[0][field];
           console.log("updateFieldsFromData: Checking field", field, "with sample value:", sampleValue);
@@ -140,12 +142,9 @@ document.addEventListener("DOMContentLoaded", () => {
         fieldEl.setAttribute("draggable", "true");
         fieldEl.setAttribute("data-field", field);
         fieldEl.setAttribute("data-type", type);
-        console.log("updateFieldsFromData: fieldEl.innerHTML for", field, "with type", type);
         fieldEl.innerHTML = `${field} <span class="field-type">${type}</span>`;
         fieldsContainer.appendChild(fieldEl);
-        console.log("updateFieldsFromData: Created field element for", field, "with type", type);
         fieldEl.addEventListener("dragstart", (e) => {
-          console.log("dragstart: Field", field, "is being dragged.", "Type:", type);
           e.dataTransfer.setData("text/plain", JSON.stringify({ field, type }));
         });
       });
@@ -189,109 +188,75 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // Draw a Chart.js bar chart using the processed data.
 function generateChartImage(layer) {
-  const offscreen = document.createElement("canvas");
-  offscreen.width = state.canvasWidth;
-  offscreen.height = state.canvasHeight;
-  const ctx = offscreen.getContext("2d");
-   console.log(`generateChartImage: Preparing to generate chart for layer ${layer.id}.`);
-  console.log(`generateChartImage: Generating chart for layer ${layer.id} with ${layer.data.length} data points.`);
-  console.log(`generateChartImage: layer.data =  ${layer.data}`);
-  console.log(`generateChartImage: layer.data.map(d => d.x) =  ${layer.data.map(d => d.x)}`);
-  console.log(`generateChartImage: layer.data.map(d => d.y =  ${layer.data.map(d => d.y)}`);
-  // Create the Chart.js chart using the layer.data array.
-  const chart = new Chart(ctx, {
-    type: "bar",
-    data: {
-      labels: layer.data.map(d => d.x), // x-axis labels from processed data
-      datasets: [{
-        label: "Wait Time",
-        data: layer.data.map(d => d.y), // y-axis values from processed data
-        backgroundColor: layer.color || "rgba(0,123,255,0.7)"
-      }]
-    },
-    options: {
-      responsive: false,
-      maintainAspectRatio: false,
-      scales: {
-        x: { type: "category", grid: { display: false }, title: { display: true, text: "Time" } },
-        y: { grid: { display: false }, title: { display: true, text: "Total Wait Time" } }
-      },
-      plugins: { legend: { display: false } }
-    }
-
-  });
-  
-  // Allow the chart to render, then capture its image.
-  setTimeout(() => {
-    const dataURL = offscreen.toDataURL();
-    layer.cachedImage = dataURL;
-    addOrUpdateLayerImage(layer);
-  }, 500);
+  editorController.generateChartImage(layer, state, container, parallaxChart, zoomSlider, currentMouseX, currentMouseY);
 }
 
 
   /* --- Step 4: Rendering into the Parallax View --- */
-  function addOrUpdateLayerImage(layer) {
-    let img = document.getElementById("layer-img-" + layer.id);
-    if (!img) {
-      img = document.createElement("img");
-      img.id = "layer-img-" + layer.id;
-      img.style.position = "absolute";
-      img.style.top = 0;
-      img.style.left = 0;
-      img.style.width = "100%";
-      img.style.height = "100%";
-      container.appendChild(img);
-    }
-    img.src = layer.cachedImage;
-    // Store depth attribute for parallax (default value or later updated via control)
-    img.dataset.depth = layer.z || 0.1;
-    updateLayerImageTransform(img);
-  }
+// function addOrUpdateLayerImage(layer) {
+//   let img = document.getElementById("layer-img-" + layer.id);
+//   if (!img) {
+//     img = document.createElement("img");
+//     img.id = "layer-img-" + layer.id;
+//     img.style.position = "absolute";
+//     img.style.top = 0;
+//     img.style.left = 0;
+//     img.style.width = "100%";
+//     img.style.height = "100%";
+//     container.appendChild(img);
+//   }
+//   img.src = layer.cachedImage;
+//   // Store depth attribute for parallax (default value or later updated via control)
+//   img.dataset.depth = layer.z || 0.1;
+//   updateLayerImageTransform(img);
+// }
 
 /* --- Step 5: User Controls for Parallax and Interaction --- */
-function updateLayerImageTransform(img) {
-  const layerId = parseInt(img.id.replace("layer-img-", ""), 10);
-  const layer = state.layers.find(layer => layer.id === layerId);
-  const rect = container.getBoundingClientRect();
-  const offsetX = (currentMouseX - rect.width/2) * 0.05 * img.dataset.depth;
-  const offsetY = (currentMouseY - rect.height/2) * 0.05 * img.dataset.depth;
-  const zoom = parseFloat(zoomSlider.value) / layer.z;
-  console.log(`Layer ${layerId} offset: (${offsetX}, ${offsetY}) zoom:${zoom}`); // Log offsets for debugging
-  img.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${zoom})`;
+//function updateLayerImageTransform(img) {
+//  const layerId = parseInt(img.id.replace("layer-img-", ""), 10);
+//  const layer = state.layers.find(layer => layer.id === layerId);
+//  const rect = container.getBoundingClientRect();
+//  const offsetX = (currentMouseX - rect.width/2) * 0.05 * img.dataset.depth;
+//  const offsetY = (currentMouseY - rect.height/2) * 0.05 * img.dataset.depth;
+//  const zoom = parseFloat(zoomSlider.value) / layer.z;
+//  console.log(`Layer ${layerId} offset: (${offsetX}, ${offsetY}) zoom:${zoom}`); // Log offsets for debugging
+//  img.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${zoom})`;
+//
+//  // Compute effective distance from camera using depth, zoom, and layer spacing.
+//  // effectiveDistance decreases as the image gets closer to the camera.
+//  
+//  // Define fade thresholds
+//  const fadeStart = 1; // below this effective distance, alpha = 0
+//  const fadeEnd = 1.5;   // above this, alpha = 1
+//  let alpha;
+//  if (zoom <= fadeStart) {
+//    alpha = .9;
+//  } else if (zoom >= fadeEnd) {
+//    alpha = 0;
+//  } else {
+//    console.log(`(zoom - fadeStart) ${(zoom - fadeStart)} / (fadeEnd - fadeStart) ${(fadeEnd - fadeStart)}`); // Log for debugging
+//    alpha = 1-((zoom - fadeStart) / (fadeEnd - fadeStart));
+//  }
+//  img.style.opacity = alpha;
+//}
 
-  // Compute effective distance from camera using depth, zoom, and layer spacing.
-  // effectiveDistance decreases as the image gets closer to the camera.
-  
-  // Define fade thresholds
-  const fadeStart = 1; // below this effective distance, alpha = 0
-  const fadeEnd = 1.5;   // above this, alpha = 1
-  let alpha;
-  if (zoom <= fadeStart) {
-    alpha = .9;
-  } else if (zoom >= fadeEnd) {
-    alpha = 0;
-  } else {
-    console.log(`(zoom - fadeStart) ${(zoom - fadeStart)} / (fadeEnd - fadeStart) ${(fadeEnd - fadeStart)}`); // Log for debugging
-    alpha = 1-((zoom - fadeStart) / (fadeEnd - fadeStart));
-  }
-  img.style.opacity = alpha;
-}
 let currentMouseX = 0, currentMouseY = 0;
 container.addEventListener("mousemove", (e) => {
   const rect = container.getBoundingClientRect();
   currentMouseX = e.clientX - rect.left;
   currentMouseY = e.clientY - rect.top;
-  requestAnimationFrame(updateAllLayerImageTransforms);
+  requestAnimationFrame(() => {
+    parallaxChart.updateAllLayerImageTransforms(container, currentMouseX, currentMouseY, parseFloat(zoomSlider.value));
+  });
 });
 
   // --- Function: updateAllLayerImageTransforms ---
-  function updateAllLayerImageTransforms() {
-    state.layers.forEach(layer => {
-      const img = document.getElementById("layer-img-" + layer.id);
-      if (img) updateLayerImageTransform(img);
-    });
-  }
+ //function updateAllLayerImageTransforms() {
+ //  state.layers.forEach(layer => {
+ //    const img = document.getElementById("layer-img-" + layer.id);
+ //    if (img) updateLayerImageTransform(img);
+ //  });
+ //}
 
   // New function: updateLayerDepths - adjust each layer's z property using state.layerSpacing.
   function updateLayerDepths() {
@@ -441,7 +406,7 @@ container.addEventListener("mousemove", (e) => {
         zoom += e.deltaY * -0.001;
         zoom = Math.min(Math.max(zoom, 0.1), 3);
         zoomSlider.value = zoom;
-        updateAllLayerImageTransforms();
+        parallaxChart.updateAllLayerImageTransforms(container, currentMouseX, currentMouseY, parseFloat(zoomSlider.value));
     });
   });
 
@@ -449,31 +414,31 @@ container.addEventListener("mousemove", (e) => {
     state.canvasX = parseInt(e.target.value);
     console.log("canvas-x: Updated canvasX to", state.canvasX);
     updateCanvasProperties();
-    updateAllLayerImageTransforms();
+    parallaxChart.updateAllLayerImageTransforms(container, currentMouseX, currentMouseY, parseFloat(zoomSlider.value));
   });
   document.getElementById("canvas-y").addEventListener("input", (e) => {
     state.canvasY = parseInt(e.target.value);
     console.log("canvas-y: Updated canvasY to", state.canvasY);
     updateCanvasProperties();
-    updateAllLayerImageTransforms();
+    parallaxChart.updateAllLayerImageTransforms(container, currentMouseX, currentMouseY, parseFloat(zoomSlider.value));
   });
   document.getElementById("canvas-width").addEventListener("input", (e) => {
     state.canvasWidth = parseInt(e.target.value);
     console.log("canvas-width: Updated canvasWidth to", state.canvasWidth);
     updateCanvasProperties();
-    updateAllLayerImageTransforms();
+    parallaxChart.updateAllLayerImageTransforms(container, currentMouseX, currentMouseY, parseFloat(zoomSlider.value));
   });
   document.getElementById("canvas-height").addEventListener("input", (e) => {
     state.canvasHeight = parseInt(e.target.value);
     console.log("canvas-height: Updated canvasHeight to", state.canvasHeight);
     updateCanvasProperties();
-    updateAllLayerImageTransforms();
+    parallaxChart.updateAllLayerImageTransforms(container, currentMouseX, currentMouseY, parseFloat(zoomSlider.value));
   });
   document.getElementById("layer-spacing").addEventListener("input", (e) => {
     console.log("layer-spacing: Updated layerSpacing to", state.layerSpacing);
     state.layerSpacing = parseFloat(e.target.value);
     updateLayerDepths();
-    updateAllLayerImageTransforms();
+    parallaxChart.updateAllLayerImageTransforms(container, currentMouseX, currentMouseY, parseFloat(zoomSlider.value));
   });
   // Layer Panel: handle layer tab selection and adding new layers.
   
@@ -560,9 +525,7 @@ container.addEventListener("mousemove", (e) => {
       console.error("No current layer defined to map column field.");
       return;
     }
-    console.log("drop: { field: data.field, type: data.type } is", { field: data.field, type: data.type });
     state.layers[state.currentLayerIndex].colField = { field: data.field, type: data.type };
-    console.log("drop: Updated colField for layer", state.currentLayerIndex, "to", state.layers[state.currentLayerIndex].colField);
     updateAxisDropZones();
     render();
   });
@@ -577,9 +540,7 @@ container.addEventListener("mousemove", (e) => {
       console.error("No current layer defined to map row field.");
       return;
     }
-    console.log("drop: { field: data.field, type: data.type } is", { field: data.field, type: data.type });
     state.layers[state.currentLayerIndex].rowField = { field: data.field, type: data.type };
-    console.log("drop: Updated rowField for layer", state.currentLayerIndex, "to", state.layers[state.currentLayerIndex].rowField);
     updateAxisDropZones();
     render();
   });
@@ -659,12 +620,10 @@ container.addEventListener("mousemove", (e) => {
 
 
   function render() {
-    updateAllLayerImageTransforms();
+    parallaxChart.updateAllLayerImageTransforms(container, currentMouseX, currentMouseY, parseFloat(zoomSlider.value));
     setTimeout(() => {
-      // For the active layer (layer 1), set the processed data.
-
-      processLayerData(state.layers[0]);
-      generateChartImage(state.layers[0]);
+      editorController.processLayerData(state.layers[0], DataSource);
+      editorController.generateChartImage(state.layers[0], state, container, parallaxChart, zoomSlider, currentMouseX, currentMouseY);
       render();
     }, 3000);
   } 

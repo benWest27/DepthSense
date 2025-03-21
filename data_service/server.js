@@ -42,8 +42,5 @@ process.on('SIGINT', async () => {
     process.exit(0);
   });
 
-// In server.js
-// ...
-
 module.exports = { app };
 

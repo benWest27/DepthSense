@@ -101,3 +101,118 @@ exports.updateVisualization = (req, res) => {
       res.status(500).json({ success: false, error: error.message });
   }
 };
+
+exports.fetchDataForSource = function(sourceId) {
+    return fetch(`http://localhost:5003/api/datasets/${sourceId}`)
+        .then(resp => {
+            if (!resp.ok) throw new Error("Failed to fetch dataset " + sourceId);
+            return resp.json();
+        })
+        .then(data => {
+            console.log("Dataset fetched for source", sourceId, ":", data);
+            return fetch(`http://localhost:5003/api/data/rows/${data.id}`)
+                .then(resp => {
+                    if (!resp.ok) throw new Error("Failed to fetch CSV rows for dataset " + data.id);
+                    return resp.json();
+                })
+                .then(csvRows => {
+                    return { dataset: data, csvRows: csvRows };
+                });
+        });
+};
+
+exports.updateFieldsFromData = function(dataheader, DataSource) {
+    console.log("updateFieldsFromData: dataheader length:", dataheader.length);
+    console.log("updateFieldsFromData: dataheader content:", dataheader);
+    const fields = [];
+    if (dataheader.length > 0) {
+        dataheader.forEach(field => {
+            let type = "string";
+            if (DataSource.length > 0 && DataSource[0][field] !== undefined) {
+                const sampleValue = DataSource[0][field];
+                console.log("updateFieldsFromData: Checking field", field, "with sample value:", sampleValue);
+                if (typeof sampleValue === "string" && /[-:]/.test(sampleValue) && !isNaN(Date.parse(sampleValue))) {
+                    type = "date";
+                    console.log("updateFieldsFromData: Field", field, "is detected as a date.");
+                } else if (!isNaN(parseFloat(sampleValue)) && isFinite(sampleValue)) {
+                    type = "number";
+                    console.log("updateFieldsFromData: Field", field, "is detected as a number.");
+                }
+            }
+            fields.push({ field: field, type: type });
+        });
+    }
+    return fields;
+};
+
+exports.tryGenerateChartForActiveLayer = function(state, DataSource, parallaxChart, container, zoomSlider, currentMouseX, currentMouseY) {
+    if (state.currentLayerIndex < 0 || state.currentLayerIndex >= state.layers.length) {
+        console.warn("No valid layer selected for chart generation.");
+        return;
+    }
+    const layer = state.layers[state.currentLayerIndex];
+    if (layer.colField && layer.rowField) {
+        exports.processLayerData(layer, DataSource);
+        exports.generateChartImage(layer, state, container, parallaxChart, zoomSlider, currentMouseX, currentMouseY);
+    }
+};
+
+exports.processLayerData = function(layer, DataSource) {
+    if (DataSource.length > 0 && layer.colField && layer.rowField && layer.colField.type === "date") {
+        const groups = {};
+        DataSource.forEach(row => {
+            const dateVal = row[layer.colField.field];
+            const waitTime = parseFloat(row[layer.rowField.field]);
+            const dt = new Date(dateVal);
+            if (isNaN(dt)) return;
+            const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')} ${String(dt.getHours()).padStart(2, '0')}`;
+            groups[key] = groups[key] || { key, x: key, y: 0 };
+            groups[key].y += waitTime;
+        });
+        layer.data = Object.values(groups).sort((a, b) => a.key.localeCompare(b.key));
+    }
+    console.log(`Layer ${layer.id} data updated; ${layer.data.length} items.`);
+};
+
+exports.generateChartImage = function(layer, state, container, parallaxChart, zoomSlider, currentMouseX, currentMouseY) {
+    const offscreen = document.createElement("canvas");
+    offscreen.width = state.canvasWidth;
+    offscreen.height = state.canvasHeight;
+    const ctx = offscreen.getContext("2d");
+    console.log(`generateChartImage: Generating chart for layer ${layer.id} with ${layer.data.length} data points.`);
+    const chart = new Chart(ctx, {
+        type: "bar",
+        data: {
+            labels: layer.data.map(d => d.x),
+            datasets: [{
+                label: "Wait Time",
+                data: layer.data.map(d => d.y),
+                backgroundColor: layer.color || "rgba(0,123,255,0.7)"
+            }]
+        },
+        options: {
+            responsive: false,
+            maintainAspectRatio: false,
+            scales: {
+                x: { type: "category", grid: { display: false }, title: { display: true, text: "Time" } },
+                y: { grid: { display: false }, title: { display: true, text: "Total Wait Time" } }
+            },
+            plugins: { legend: { display: false } }
+        }
+    });
+    setTimeout(() => {
+        const dataURL = offscreen.toDataURL();
+        layer.cachedImage = dataURL;
+        parallaxChart.addOrUpdateLayerImage(layer, container, currentMouseX, currentMouseY, parseFloat(zoomSlider.value));
+    }, 500);
+};
+
+window.editorController = {
+    uploadCSV, getDatasets, getDataset,
+    updateVisualization,
+    fetchDataForSource,
+    updateFieldsFromData,
+    tryGenerateChartForActiveLayer,
+    processLayerData,
+    generateChartImage
+};
