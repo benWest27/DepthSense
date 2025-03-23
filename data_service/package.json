@@ -1,7 +1,7 @@
 {
     "name": "data_service",
     "version": "1.0.0",
-    "description": "Microservice for managing database interactions in DepthSense",
+    "description": "Microservice for managing database interactions in Paraviz",
     "main": "server.js",
     "scripts": {
       "start": "node server.js",

@@ -1,138 +1,141 @@
 const snakeCase = window._ && _.snakeCase ? _.snakeCase : function(str){ return str.toLowerCase().replace(/\s+/g, '_'); };
 
-/**
- * Infers PostgreSQL data type from sample values
- * @param {Array<any>} values Sample values from the column
- * @returns {string} PostgreSQL data type
- */
-function inferDataType(values) {
-  const nonNullValues = values.filter(v => v !== null && v !== '');
-  if (nonNullValues.length === 0) return 'TEXT';
-
-  // Try parsing as number
-  const numberValues = nonNullValues.every(v => !isNaN(v));
-  if (numberValues) {
-    const hasDecimals = nonNullValues.some(v => v.includes('.'));
-    return hasDecimals ? 'DOUBLE PRECISION' : 'INTEGER';
-  }
-
-  // Try parsing as date
-  const dateValues = nonNullValues.every(v => !isNaN(Date.parse(v)));
-  if (dateValues) return 'TIMESTAMP';
-
-  return 'TEXT';
-}
-
-/**
- * Creates a table for the dataset and stores CSV data
- * @param {Array<Object>} records CSV records
- * @param {Array<string>} columns Column names
- * @returns {Promise<Object>} Result with dataset ID and field information
- */
-async function storeCSVInDB(records, columns) {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-
-    // Create dataset entry
-    const datasetResult = await client.query(
-      'INSERT INTO datasets (name, description) VALUES ($1, $2) RETURNING id',
-      [`dataset_${Date.now()}`, 'Imported CSV dataset']
-    );
-    const datasetId = datasetResult.rows[0].id;
-
-    // Infer data types for each column
-    const columnTypes = columns.map(column => {
-      const values = records.map(record => record[column]);
-      return {
-        name: snakeCase(column),
-        type: inferDataType(values)
-      };
-    });
-
-    // Create table for this dataset
-    const tableName = `dataset_${datasetId}_data`;
-    const createTableSQL = `
-      CREATE TABLE ${tableName} (
-        id SERIAL PRIMARY KEY,
-        ${columnTypes.map(col => `${col.name} ${col.type}`).join(',\n        ')}
-      )
-    `;
-    await client.query(createTableSQL);
-
-    // Prepare bulk insert
-    const values = records.map(record => 
-      columns.map(col => record[col])
-    );
-    
-    const placeholders = values.map((_, i) => 
-      `(${columns.map((_, j) => `$${i * columns.length + j + 1}`).join(', ')})`
-    ).join(', ');
-
-    const insertSQL = `
-      INSERT INTO ${tableName} (${columnTypes.map(col => col.name).join(', ')})
-      VALUES ${placeholders}
-    `;
-
-    await client.query(insertSQL, values.flat());
-
-    await client.query('COMMIT');
-
-    return {
-      datasetId,
-      fields: columnTypes.map(col => ({
-        name: col.name,
-        type: col.type,
-        originalName: columns[columnTypes.findIndex(c => c.name === col.name)]
-      }))
-    };
-
-  } catch (error) {
-    await client.query('ROLLBACK');
-    throw error;
-  } finally {
-    client.release();
-  }
-}
-
-/**
- * Retrieves all datasets
- * @returns {Promise<Array>} List of datasets
- */
-async function getDatasets() {
-  const result = await pool.query('SELECT * FROM datasets ORDER BY created_at DESC');
-  return result.rows;
-}
-
-/**
- * Retrieves a specific dataset by ID
- * @param {number} id Dataset ID
- * @returns {Promise<Object>} Dataset information
- */
-async function getDataset(id) {
-  const result = await pool.query('SELECT * FROM datasets WHERE id = $1', [id]);
-  if (result.rows.length === 0) return null;
-
-  const dataset = result.rows[0];
-  const tableName = `dataset_${id}_data`;
+function createUploadOverlay() {
+  // Create overlay element with inline styles.
+  const overlay = document.createElement("div");
+  overlay.className = "upload-overlay";
+  overlay.style.position = "fixed";
+  overlay.style.top = "0";
+  overlay.style.left = "0";
+  overlay.style.right = "0";
+  overlay.style.bottom = "0";
+  overlay.style.backgroundColor = "rgba(0,0,0,0.5)";
+  overlay.style.display = "flex";
+  overlay.style.alignItems = "center";
+  overlay.style.justifyContent = "center";
   
-  // Get table schema
-  const schemaQuery = `
-    SELECT column_name, data_type
-    FROM information_schema.columns
-    WHERE table_name = $1
-    AND column_name != 'id'
+  // Create container element with inline styling.
+  const container = document.createElement("div");
+  container.className = "upload-container";
+  container.style.background = "#fff";
+  container.style.borderRadius = "8px";
+  container.style.padding = "20px";
+  container.style.width = "400px";
+  container.style.position = "relative";
+  container.style.boxShadow = "0 4px 8px rgba(0,0,0,0.2)";
+  
+  // Set container inner HTML.
+  container.innerHTML = `
+    <button class="close-btn" id="upload-close-btn" 
+            style="position:absolute; top:10px; right:10px; background:none; border:none; font-size:20px; cursor:pointer;">&times;</button>
+    <h2 style="text-align:center; margin-top:0;">Upload CSV</h2>
+    <div style="margin:20px 0;">
+      <input type="file" id="upload-file-input" accept=".csv" style="display:none;" />
+      <button id="browse-btn" style="padding:8px 12px; cursor:pointer;">Browse...</button>
+      <input type="text" id="filename-input" placeholder="No file chosen" style="margin-left:10px; padding:8px; width:60%;" />
+    </div>
+    <button id="upload-submit-btn" style="width:100%; padding:10px; background-color:#0078d7; color:#fff; border:none; border-radius:4px; cursor:pointer;">Submit</button>
   `;
-  const schemaResult = await pool.query(schemaQuery, [tableName]);
+  overlay.appendChild(container);
+  document.body.appendChild(overlay);
   
-  dataset.fields = schemaResult.rows;
-  return dataset;
+  // Events for Browse: trigger hidden file input.
+  container.querySelector("#browse-btn").addEventListener("click", () => {
+    document.getElementById("upload-file-input").click();
+  });
+  
+  // When file is selected, update the filename input.
+  document.getElementById("upload-file-input").addEventListener("change", function() {
+    const file = this.files[0];
+    if (file) {
+      document.getElementById("filename-input").value = file.name;
+    }
+  });
+  
+  // Submit button event: upload file then remove overlay.
+  container.querySelector("#upload-submit-btn").addEventListener("click", () => {
+    const fileInput = document.getElementById("upload-file-input");
+    const file = fileInput.files[0];
+    if (!file) {
+      alert("Please choose a CSV file.");
+      return;
+    }
+    const filenameInput = document.getElementById("filename-input");
+    const filename = filenameInput ? filenameInput.value : "";
+    const formData = new FormData();
+    formData.append("csvfile", file);
+    // Append the custom filename so the data service can use it
+    formData.append("filename", filename);
+    fetch("http://localhost:5003/api/data/upload", {
+      method: "POST",
+      body: formData,
+    })
+      .then(resp => {
+        if (!resp.ok) {
+          return resp.text().then(text => { throw new Error("Upload failed: " + text); });
+        }
+        return resp.json();
+      })
+      .then(result => {
+        console.log("CSV file uploaded successfully:", result);
+        removeOverlay();
+      })
+      .catch(err => console.error("CSV upload error:", err));
+  });
+  
+  // Close overlay when clicking the X button.
+  container.querySelector("#upload-close-btn").addEventListener("click", removeOverlay);
+  
+  function removeOverlay() {
+    document.body.removeChild(overlay);
+  }
 }
 
-// Optionally expose functions if needed:
-window.upload = {
-  inferDataType,
-  storeCSVInDB,
-  getDatasets,
-  getDataset
-};
+function initCSVUpload() {
+  const uploadButton = document.getElementById("upload");
+  if (uploadButton) {
+    uploadButton.addEventListener("click", (e) => {
+      e.preventDefault();
+      createUploadOverlay();
+    });
+  }
+
+  // Attach common popup events (if these elements exist).
+  const cancelBtn = document.getElementById("cancelBtn");
+  if (cancelBtn) {
+    cancelBtn.addEventListener("click", () => {
+      document.querySelector(".modal-overlay").style.display = "none";
+    });
+  }
+  const uploadForm = document.getElementById("uploadForm");
+  if (uploadForm) {
+    uploadForm.addEventListener("submit", e => {
+      e.preventDefault();
+      const file = popupFileInput.files[0];
+      const filenameInput = document.getElementById("filename-input");
+      const filename = filenameInput ? filenameInput.value : "";
+      if (file) {
+        const formData = new FormData();
+        formData.append("csvfile", file);
+        // Append the filename from the filename-input element
+        formData.append("filename", filename);
+        fetch("http://localhost:5003/api/data/upload", {
+          method: "POST",
+          body: formData,
+        })
+          .then(resp => {
+            if (!resp.ok) throw new Error("Upload failed");
+            return resp.json();
+          })
+          .then(result => {
+            console.log("CSV file uploaded successfully:", result);
+          })
+          .catch(err => console.error("CSV upload error:", err));
+      }
+      alert("Submitted!");
+    });
+  }
+}
+
+// Call the CSV upload initialization function
+initCSVUpload();

@@ -6,7 +6,7 @@ const logger = require('../utils/logger');
 
 // Configure your PostgreSQL connection.
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgres://admin:password@postgres:5432/depthsense'
+  connectionString: process.env.DATABASE_URL || 'postgres://admin:password@postgres:5432/paraviz' // was .../depthsense
 });
 
 /**
@@ -19,7 +19,7 @@ const pool = new Pool({
  * @returns {Promise<Object>} - A promise that resolves with information about the processed CSV.
  */
 async function processCSVUpload(file) {
-    logger.info('Processing CSV upload for file:', file.originalname);
+  logger.info('Processing CSV upload for file:', file.originalname);
   return new Promise((resolve, reject) => {
     const results = [];
     fs.createReadStream(file.path)
@@ -29,12 +29,14 @@ async function processCSVUpload(file) {
         try {
           // Extract column names from the first row (if available).
           const columnNames = results.length > 0 ? Object.keys(results[0]) : [];
-          // Get the base name (without extension) and abbreviate to 20 characters.
-          const baseName = file.originalname ? 
-            path.basename(file.originalname, path.extname(file.originalname)) : 
+          // Use the provided filename from the filename-input (assumed to be attached as customFilename)
+          // Otherwise fall back to file.originalname.
+          const providedName = file.customFilename || file.originalname;
+          const baseName = providedName ? 
+            path.basename(providedName, path.extname(providedName)) : 
             path.basename(file.path);
           const datasetName = baseName.substring(0, 20);
-
+          
           // Begin a transaction.
           const client = await pool.connect();
           try {
@@ -83,7 +85,7 @@ async function processCSVUpload(file) {
             client.release();
           }
         } catch (err) {
-            logger.error('Error during CSV upload:', err);
+          logger.error('Error during CSV upload:', err);
           reject(err);
         }
       })

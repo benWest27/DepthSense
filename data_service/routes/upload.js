@@ -7,7 +7,11 @@ const logger = require('../utils/logger');
 const router = express.Router();
 
 router.post('/upload', upload.single('csvfile'), async (req, res) => {
-    logger.info('Received file:', req.file);
+  logger.info('Received file:', req.file);
+  // Attach custom filename from body if provided.
+  if (req.body.filename) {
+    req.file.customFilename = req.body.filename;
+  }
   try {
     const result = await processCSVUpload(req.file);
     res.status(201).json(result);

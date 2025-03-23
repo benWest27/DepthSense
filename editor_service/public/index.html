@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>DepthSense Editor</title>
+  <title>Paraviz Editor</title>
   <!-- Link to external CSS -->
   <link rel="stylesheet" href="css/styles.css">
   <!-- Load Chart.js before your app.js -->
@@ -19,11 +19,11 @@
   <!-- Top Navigation Bar -->
   <div id="top-bar">
     <button id="logout">Logout</button>
-    <button id="save">Save</button>
+   <!--  <button id="save">Save</button>
     <button id="open">Open</button>
-    <button id="upload">Upload</button>
     <button id="viewer">Viewer</button>
-    <button id="test">Test</button>
+    <button id="test">Test</button>-->
+    <button id="upload">Upload</button>
   </div>
 
   <!-- Main Dashboard Container -->
@@ -83,12 +83,12 @@
 
     <!-- Right Sidebar -->
     <aside id="right-sidebar">
-      <button id="toggle-mouse-control">Toggle Mouse Control</button>
+      <!--<button id="toggle-mouse-control">Toggle Mouse Control</button>
       <button id="toggle-focal-mode">Toggle Focal Mode</button>
-      <div class="slider-container">
+     <div class="slider-container">
         <label for="layer-depth">Layer Depth:</label>
         <input type="range" id="layer-depth" min="0" max="1" step="0.01" value="0">
-      </div>
+      </div>-->
       <div class="slider-container">
         <label for="horizontal-focal">Focal X:</label>
         <input type="range" id="horizontal-focal" min="0" max="100" value="50">
@@ -103,28 +103,13 @@
       </div>
       <div class="slider-container">
         <label for="zoom">Size:</label>
-        <input type="range" id="zoom" min="0.1" max="3" step="0.1" value="1">
+        <input type="range" id="zoom" min="0.0001" max="1.5" step="0.00001" value="0.1">
       </div>
       <div class="slider-container">
         <label for="layer-spacing">Layer Spacing:</label>
-        <input type="range" id="layer-spacing" min="0" max="100" value="20">
+        <input type="range" id="layer-spacing" min="0.00001" step="0.01" max="5" value="1">
       </div>
-      <div class="slider-container">
-        <label for="canvas-x">Canvas X:</label>
-        <input type="number" id="canvas-x" value="50">
-      </div>
-      <div class="slider-container">
-        <label for="canvas-y">Canvas Y:</label>
-        <input type="number" id="canvas-y" value="50">
-      </div>
-      <div class="slider-container">
-        <label for="canvas-width">Canvas Width:</label>
-        <input type="number" id="canvas-width" value="600">
-      </div>
-      <div class="slider-container">
-        <label for="canvas-height">Canvas Height:</label>
-        <input type="number" id="canvas-height" value="600">
-      </div>
+
     </aside>
 
   </div>

@@ -19,7 +19,7 @@ services:
       image: postgres:14
       restart: always
       environment:
-        POSTGRES_DB: depthsense
+        POSTGRES_DB: paraviz
         POSTGRES_USER: admin
         POSTGRES_PASSWORD: password
       ports:
@@ -47,7 +47,7 @@ services:
       - DB_PORT=5432
       - DB_USER=admin
       - DB_PASSWORD=password
-      - DB_NAME=depthsense
+      - DB_NAME=paraviz
     depends_on:
       - data_service
     networks:
@@ -87,7 +87,7 @@ services:
       - DB_PORT=5432
       - DB_USER=admin
       - DB_PASSWORD=password
-      - DB_NAME=depthsense
+      - DB_NAME=paraviz
     depends_on:
       - postgres
     networks:

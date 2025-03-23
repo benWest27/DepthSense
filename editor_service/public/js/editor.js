@@ -1,6 +1,9 @@
 document.addEventListener("DOMContentLoaded", () => {
   console.log("DOMContentLoaded: Editor service is starting.");
 
+  // With globals:
+  const parallaxChart = window.parallaxChart;
+  const editorController = window.editorController;
   // Get DOM elements first.
   const container = document.getElementById("canvas-container");
   const dynamicCanvas = document.getElementById("dynamic-layer");
@@ -8,31 +11,12 @@ document.addEventListener("DOMContentLoaded", () => {
   const ctx = canvas.getContext("2d");
 
   // Initialize state.
-  let state = {
-    focalPoint: { x: 0.5, y: 0.5 },
-    zoom: 1,
-    markerSize: 5,
-    mouseControl: false,
-    sliderFocal: true,
-    layerOffset: 0,
-    canvasX: 50,
-    canvasY: 50,
-    canvasWidth: 600,
-    canvasHeight: 600,
-    layerSpacing: 2,
-    layers: [ 
-      { id: 1, z: 0.1, rowField: null, colField: null, rowdata: [], coldata: [] }
-    ],
-    currentLayerIndex: -1
-  };
+  const state = parallaxChart.state; // now editor.js uses parallaxChart.state for all layer handling
 
   // Replace the following require calls:
   // const parallaxChart = require('../../services/parallax.js')(state, container, dynamicCanvas, ctx);
   // const editorController = require('../../controllers/editorController.js')(state, parallaxChart, container, ctx);
   
-  // With globals:
-  const parallaxChart = window.parallaxChart;
-  const editorController = window.editorController;
 
   const dataSourceSelect = document.getElementById("data-source-select");
   const fieldsContainer = document.getElementById("fields-container");
@@ -40,7 +24,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const rowDropZone = document.getElementById("row-drop-zone");
   const layerPanel = document.getElementById("layer-panel");
   const zoomSlider = document.getElementById("zoom");
-  const parallaxSlider = document.getElementById("layer-depth");
+  //const parallaxSlider = document.getElementById("layer-depth");
   // Global CSV data array
   let DataSource = [];
   let dataheader = [];
@@ -203,104 +187,127 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // Draw a Chart.js bar chart using the processed data.
 function generateChartImage(layer) {
-  const offscreen = document.createElement("canvas");
-  offscreen.width = state.canvasWidth;
-  offscreen.height = state.canvasHeight;
-  const ctxOffscreen = offscreen.getContext("2d");
-  console.log(`generateChartImage: Generating chart for layer ${layer.id} using ${layer.coldata.length} labels and ${layer.rowdata.length} data points.`);
-  
-  // Create the Chart.js chart using the new layer structure.
-  const chart = new Chart(ctxOffscreen, {
-    type: "bar",
-    data: {
-      labels: layer.coldata, // x-axis labels from coldata
-      datasets: [{
-        label: "Wait Time",
-        data: layer.rowdata,   // y-axis values from rowdata
-        backgroundColor: layer.color || "rgba(0,123,255,0.7)"
-      }]
-    },
-    options: {
-      responsive: false,
-      maintainAspectRatio: false,
-      scales: {
-        // Set x-axis title using the field from colField.
-        x: {
-          type: "category",
-          grid: { display: false },
-          title: { 
-            display: true,
-            text: layer.colField && layer.colField.field ? layer.colField.field : "X Axis"
-          }
-        },
-        // Set y-axis title using the field from rowField.
-        y: {
-          grid: { display: false },
-          title: { 
-            display: true,
-            text: layer.rowField && layer.rowField.field ? layer.rowField.field : "Y Axis"
-          }
-        }
-      },
-      plugins: { legend: { display: false } }
+    console.log("generateChartImage: Generating chart image for layer", layer.id);
+    const offscreen = document.createElement("canvas");
+    offscreen.width = state.canvasWidth;
+    offscreen.height = state.canvasHeight;
+    const ctxOffscreen = offscreen.getContext("2d");
+
+    // Determine dropped fields.
+    const colFields = layer.colFields ? layer.colFields : (layer.colField ? [layer.colField] : []);
+    const rowFields = layer.rowFields ? layer.rowFields : (layer.rowField ? [layer.rowField] : []);
+
+    // Default labels and datasets.
+    let labels = layer.coldata || [];
+    let datasets = [];
+    
+    // If the row field is a string, group by distinct row values.
+    if (rowFields.length > 0 && layer.rowdata && rowFields[0].type === "string") {
+        const rField = rowFields[0];
+        const rowCounts = {};
+        layer.rowdata.forEach(row => {
+            const value = row[rField.field];
+            if (value != null) {
+                rowCounts[value] = (rowCounts[value] || 0) + 1;
+            }
+        });
+        labels = Object.keys(rowCounts).sort();
+        datasets.push({
+            label: rField.field,
+            data: labels.map(val => rowCounts[val]),
+            backgroundColor: (layer.colors && layer.colors[rField.field]) || "rgba(0,123,255,0.7)"
+        });
+    } else if (rowFields.length > 0 && layer.rowdata) {
+        // Fallback: use existing logic.
+        rowFields.forEach(rField => {
+            let data =
+              layer.rowdata && layer.rowdata[rField.field]
+                ? layer.rowdata[rField.field]
+                : layer.rowdata;
+            datasets.push({
+              label: rField.field,
+              data: data,
+              backgroundColor:
+                (layer.colors && layer.colors[rField.field]) || "rgba(0,123,255,0.7)"
+            });
+        });
     }
-  });
-  
-  // Allow the chart to render, then capture its image.
-  setTimeout(() => {
-    const dataURL = offscreen.toDataURL();
-    layer.cachedImage = dataURL;
-    parallaxChart.addOrUpdateLayerImage(layer, container, currentMouseX, currentMouseY, parseFloat(zoomSlider.value));
-  }, 500);
+
+    // Additional: if the col field is string, group distinct values.
+    if (colFields.length > 0 && layer.coldata && colFields[0].type === "string") {
+        const cField = colFields[0];
+        const colCounts = {};
+        layer.coldata.forEach(val => {
+            if (val != null) {
+                colCounts[val] = (colCounts[val] || 0) + 1;
+            }
+        });
+        // Merge or override labels if needed.
+        labels = Object.keys(colCounts).sort();
+        datasets.push({
+            label: cField.field,
+            data: labels.map(val => colCounts[val]),
+            backgroundColor:
+              (layer.colors && layer.colors[cField.field]) || "rgba(255,99,132,0.7)"
+        });
+    }
+    
+    // Create the Chart.js chart.
+    const chart = new Chart(ctxOffscreen, {
+      type: "bar",
+      data: {
+          labels: labels,
+          datasets: datasets
+      },
+      options: {
+          responsive: false,
+          maintainAspectRatio: false,
+          scales: {
+              x: {
+                  type: "category",
+                  grid: { display: false },
+                  title: { 
+                    display: true,
+                    text: colFields.length > 0 ? colFields[0].field : "X Axis"
+                  },
+                  markerSize: state.markerSize
+              },
+              y: {
+                  grid: { display: false },
+                  title: { 
+                    display: true,
+                    text: rowFields.length > 0 ? rowFields.map(r => r.field).join(", ") : "Y Axis"
+                  },
+                  markerSize: state.markerSize
+              }
+          },
+          plugins: { legend: { display: datasets.length > 1 } }
+      }
+    });
+
+    // If a numeric field was dropped, add a blue border to the corresponding drop zone.
+    if (rowFields.length > 0 && rowFields[0].type === "number") {
+      const rowDropZone = document.getElementById("row-drop-zone");
+      if (rowDropZone) { rowDropZone.style.border = "2px solid blue"; }
+    } else {
+      const rowDropZone = document.getElementById("row-drop-zone");
+      if (rowDropZone) { rowDropZone.style.border = ""; }
+    }
+    if (colFields.length > 0 && colFields[0].type === "number") {
+      const colDropZone = document.getElementById("column-drop-zone");
+      if (colDropZone) { colDropZone.style.border = "2px solid blue"; }
+    } else {
+      const colDropZone = document.getElementById("column-drop-zone");
+      if (colDropZone) { colDropZone.style.border = ""; }
+    }
+
+    // Allow the chart to render, then capture its image.
+    setTimeout(() => {
+      const dataURL = offscreen.toDataURL();
+      layer.cachedImage = dataURL;
+      parallaxChart.addOrUpdateLayerImage(layer, container, currentMouseX, currentMouseY, parseFloat(zoomSlider.value));
+    }, 500);
 }
-
-  /* --- Step 4: Rendering into the Parallax View --- */
-// function addOrUpdateLayerImage(layer) {
-//   let img = document.getElementById("layer-img-" + layer.id);
-//   if (!img) {
-//     img = document.createElement("img");
-//     img.id = "layer-img-" + layer.id;
-//     img.style.position = "absolute";
-//     img.style.top = 0;
-//     img.style.left = 0;
-//     img.style.width = "100%";
-//     img.style.height = "100%";
-//     container.appendChild(img);
-//   }
-//   img.src = layer.cachedImage;
-//   // Store depth attribute for parallax (default value or later updated via control)
-//   img.dataset.depth = layer.z || 0.1;
-//   updateLayerImageTransform(img);
-// }
-
-/* --- Step 5: User Controls for Parallax and Interaction --- */
-//function updateLayerImageTransform(img) {
-//  const layerId = parseInt(img.id.replace("layer-img-", ""), 10);
-//  const layer = state.layers.find(layer => layer.id === layerId);
-//  const rect = container.getBoundingClientRect();
-//  const offsetX = (currentMouseX - rect.width/2) * 0.05 * img.dataset.depth;
-//  const offsetY = (currentMouseY - rect.height/2) * 0.05 * img.dataset.depth;
-//  const zoom = parseFloat(zoomSlider.value) / layer.z;
-//  console.log(`Layer ${layerId} offset: (${offsetX}, ${offsetY}) zoom:${zoom}`); // Log offsets for debugging
-//  img.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${zoom})`;
-//
-//  // Compute effective distance from camera using depth, zoom, and layer spacing.
-//  // effectiveDistance decreases as the image gets closer to the camera.
-//  
-//  // Define fade thresholds
-//  const fadeStart = 1; // below this effective distance, alpha = 0
-//  const fadeEnd = 1.5;   // above this, alpha = 1
-//  let alpha;
-//  if (zoom <= fadeStart) {
-//    alpha = .9;
-//  } else if (zoom >= fadeEnd) {
-//    alpha = 0;
-//  } else {
-//    console.log(`(zoom - fadeStart) ${(zoom - fadeStart)} / (fadeEnd - fadeStart) ${(fadeEnd - fadeStart)}`); // Log for debugging
-//    alpha = 1-((zoom - fadeStart) / (fadeEnd - fadeStart));
-//  }
-//  img.style.opacity = alpha;
-//}
 
   // --- Render loop ---
   let currentMouseX = 0, currentMouseY = 0;
@@ -312,14 +319,6 @@ function generateChartImage(layer) {
       parallaxChart.updateAllLayerImageTransforms(container, currentMouseX, currentMouseY, parseFloat(zoomSlider.value));
     });
   });
-
-  // --- Function: updateAllLayerImageTransforms ---
- //function updateAllLayerImageTransforms() {
- //  state.layers.forEach(layer => {
- //    const img = document.getElementById("layer-img-" + layer.id);
- //    if (img) updateLayerImageTransform(img);
- //  });
- //}
 
   // New function: updateLayerDepths - adjust each layer's z property using state.layerSpacing.
   function updateLayerDepths() {
@@ -360,41 +359,41 @@ function generateChartImage(layer) {
   }
 
   // NEW: Function to handle CSV file upload through the "Upload" button
-  function initCSVUpload() {
-    const uploadButton = document.getElementById("upload");
-    const fileInput = document.createElement("input");
-    fileInput.type = "file";
-    fileInput.accept = ".csv";
-    fileInput.style.display = "none";
-    document.body.appendChild(fileInput);
-  
-    uploadButton.addEventListener("click", () => {
-      fileInput.click();
-    });
-  
-    fileInput.addEventListener("change", () => {
-      const file = fileInput.files[0];
-      if (file) {
-        const formData = new FormData();
-        formData.append("csvfile", file);
-        fetch("http://localhost:5003/api/data/upload", {
-          method: "POST",
-          body: formData,
-        })
-          .then(resp => {
-            if (!resp.ok) throw new Error("Upload failed");
-            return resp.json();
-          })
-          .then(result => {
-            console.log("CSV file uploaded successfully:", result);
-          })
-          .catch(err => console.error("CSV upload error:", err));
-      }
-    });
-  }
+ // function initCSVUpload() {
+ //   const uploadButton = document.getElementById("upload");
+ //   const fileInput = document.createElement("input");
+ //   fileInput.type = "file";
+ //   fileInput.accept = ".csv";
+ //   fileInput.style.display = "none";
+ //   document.body.appendChild(fileInput);
+ // 
+ //   uploadButton.addEventListener("click", () => {
+ //     fileInput.click();
+ //   });
+ // 
+ //   fileInput.addEventListener("change", () => {
+ //     const file = fileInput.files[0];
+ //     if (file) {
+ //       const formData = new FormData();
+ //       formData.append("csvfile", file);
+ //       fetch("http://localhost:5003/api/data/upload", {
+ //         method: "POST",
+ //         body: formData,
+ //       })
+ //         .then(resp => {
+ //           if (!resp.ok) throw new Error("Upload failed");
+ //           return resp.json();
+ //         })
+ //         .then(result => {
+ //           console.log("CSV file uploaded successfully:", result);
+ //         })
+ //         .catch(err => console.error("CSV upload error:", err));
+ //     }
+ //   });
+ // }
   
   // Call the CSV upload initialization function
-  initCSVUpload();
+ // initCSVUpload();
 
   // NEW: Add event listener for "Add Data Source" button to refresh the data source list.
   const addDataSourceButton = document.getElementById("add-data-source");
@@ -421,36 +420,55 @@ function generateChartImage(layer) {
   // Input controls (focal, zoom, marker size, etc.)
   document.getElementById("horizontal-focal").addEventListener("input", (e) => {
     if (state.sliderFocal) {
-      state.focalPoint.x = e.target.value / 100;
+      console.log("horizontal-focal slider fired with value:", e.target.value);
+      state.focalPoint.x = parseFloat(e.target.value) / 100;
       console.log("horizontal-focal: Updated focalPoint.x to", state.focalPoint.x);
       render();
     }
   });
   document.getElementById("vertical-focal").addEventListener("input", (e) => {
     if (state.sliderFocal) {
-      state.focalPoint.y = e.target.value / 100;
+      console.log("vertical-focal slider fired with value:", e.target.value);
+      state.focalPoint.y = parseFloat(e.target.value) / 100;
       console.log("vertical-focal: Updated focalPoint.y to", state.focalPoint.y);
       render();
     }
   });
+
   document.getElementById("zoom").addEventListener("input", (e) => {
     state.zoom = parseFloat(e.target.value);
     console.log("zoom: Updated zoom to", state.zoom);
     render();
   });
+
+  container.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    // Adjust the zoom value: a small negative deltaY increases zoom, positive decreases.
+    let zoom = state.zoom;
+    zoom += e.deltaY * -0.001;
+    zoom = Math.min(Math.max(zoom, 0.0001), 1.5);
+    state.zoom = zoom;
+    zoomSlider.value = zoom;
+    // Update the parallax image transforms with the new zoom value.
+    parallaxChart.updateAllLayerImageTransforms(container, currentMouseX, currentMouseY, zoom);
+  });
+
   document.getElementById("marker-size").addEventListener("input", (e) => {
     state.markerSize = parseInt(e.target.value);
     console.log("marker-size: Updated markerSize to", state.markerSize);
+    state.layers.forEach(element => {
+      generateChartImage(element); // Regenerate the chart for each layer with the new marker size
+    });
     render();
   });
-  document.getElementById("toggle-mouse-control").addEventListener("click", () => {
-    state.mouseControl = !state.mouseControl;
-    console.log("toggle-mouse-control: mouseControl is now", state.mouseControl);
-  });
-  document.getElementById("toggle-focal-mode").addEventListener("click", () => {
-    state.sliderFocal = !state.sliderFocal;
-    console.log("toggle-focal-mode: sliderFocal is now", state.sliderFocal);
-  });
+  //document.getElementById("toggle-mouse-control").addEventListener("click", () => {
+  //  state.mouseControl = !state.mouseControl;
+  //  console.log("toggle-mouse-control: mouseControl is now", state.mouseControl);
+  //});
+  //document.getElementById("toggle-focal-mode").addEventListener("click", () => {
+  //  state.sliderFocal = !state.sliderFocal;
+  //  console.log("toggle-focal-mode: sliderFocal is now", state.sliderFocal);
+  //});
   canvas.addEventListener("mousemove", (e) => {
     if (state.mouseControl && !state.sliderFocal) {
       state.focalPoint.x = e.offsetX / canvas.width;
@@ -460,43 +478,39 @@ function generateChartImage(layer) {
     }
   });
 
-  document.getElementById("layer-depth").addEventListener("input", (e) => {
-    state.layerOffset = parseFloat(e.target.value);
-    console.log("layer-depth: Updated layerOffset to", state.layerOffset);
-    container.addEventListener("wheel", (e) => {
-        e.preventDefault();
-        let zoom = parseFloat(zoomSlider.value);
-        zoom += e.deltaY * -0.001;
-        zoom = Math.min(Math.max(zoom, 0.1), 3);
-        zoomSlider.value = zoom;
-        parallaxChart.updateAllLayerImageTransforms(container, currentMouseX, currentMouseY, parseFloat(zoomSlider.value));
-    });
+  // Add mouseenter to update booleans when mouse is over canvas-container
+  container.addEventListener("mouseenter", () => {
+    state.mouseControl = true;
+    state.sliderFocal = false;
+    console.log("mouseenter: Set state.mouseControl =",state.mouseControl," and state.sliderFocal = ", state.sliderFocal);
   });
 
-  document.getElementById("canvas-x").addEventListener("input", (e) => {
-    state.canvasX = parseInt(e.target.value);
-    console.log("canvas-x: Updated canvasX to", state.canvasX);
-    updateCanvasProperties();
-    parallaxChart.updateAllLayerImageTransforms(container, currentMouseX, currentMouseY, parseFloat(zoomSlider.value));
+
+  //document.getElementById("layer-depth").addEventListener("input", (e) => {
+  //  state.layerOffset = parseFloat(e.target.value);
+  //  console.log("layer-depth: Updated layerOffset to", state.layerOffset);
+  //  container.addEventListener("wheel", (e) => {
+  //      e.preventDefault();
+  //      let zoom = parseFloat(zoomSlider.value);
+  //      zoom += e.deltaY * -0.001;
+  //      zoom = Math.min(Math.max(zoom, 0.1), 3);
+  //      zoomSlider.value = zoom;
+  //      parallaxChart.updateAllLayerImageTransforms(container, currentMouseX, currentMouseY, parseFloat(zoomSlider.value));
+  //  });
+  //});
+
+  container.addEventListener("mouseleave", () => {
+    // Use slider values exclusively to set focal point
+    state.mouseControl = false;
+    state.sliderFocal = true;
+    const horFocal = parseFloat(document.getElementById("horizontal-focal").value) / 100;
+    const verFocal = parseFloat(document.getElementById("vertical-focal").value) / 100;
+    state.focalPoint.x = horFocal;
+    state.focalPoint.y = verFocal;
+    console.log("mouseenter: Set state.mouseControl =",state.mouseControl," and state.sliderFocal = ", state.sliderFocal);
+    render();
   });
-  document.getElementById("canvas-y").addEventListener("input", (e) => {
-    state.canvasY = parseInt(e.target.value);
-    console.log("canvas-y: Updated canvasY to", state.canvasY);
-    updateCanvasProperties();
-    parallaxChart.updateAllLayerImageTransforms(container, currentMouseX, currentMouseY, parseFloat(zoomSlider.value));
-  });
-  document.getElementById("canvas-width").addEventListener("input", (e) => {
-    state.canvasWidth = parseInt(e.target.value);
-    console.log("canvas-width: Updated canvasWidth to", state.canvasWidth);
-    updateCanvasProperties();
-    parallaxChart.updateAllLayerImageTransforms(container, currentMouseX, currentMouseY, parseFloat(zoomSlider.value));
-  });
-  document.getElementById("canvas-height").addEventListener("input", (e) => {
-    state.canvasHeight = parseInt(e.target.value);
-    console.log("canvas-height: Updated canvasHeight to", state.canvasHeight);
-    updateCanvasProperties();
-    parallaxChart.updateAllLayerImageTransforms(container, currentMouseX, currentMouseY, parseFloat(zoomSlider.value));
-  });
+
   document.getElementById("layer-spacing").addEventListener("input", (e) => {
     console.log("layer-spacing: Updated layerSpacing to", state.layerSpacing);
     state.layerSpacing = parseFloat(e.target.value);
@@ -506,7 +520,6 @@ function generateChartImage(layer) {
   // Layer Panel: handle layer tab selection and adding new layers.
   
   function updateLayerPanel() {
-    // Clear all layer tabs except the add-layer button.
     const panel = document.getElementById("layer-panel");
     // Clear existing layer tabs except the "Add Layer" button.
     panel.querySelectorAll(".layer-tab").forEach(tab => tab.remove());
@@ -516,7 +529,10 @@ function generateChartImage(layer) {
       
       if (index === state.currentLayerIndex) { 
         tab.classList.add("selected"); 
+        tab.style.backgroundColor = "#0078d7"; // selected layer color
         console.log("Selected layer:", layer.id); // Added log for layer selection
+      } else {
+        tab.style.backgroundColor = "white"; // deselected layer color
       }
       tab.textContent = `Layer ${index+1}`;
       tab.dataset.layerIndex = index;
@@ -524,6 +540,7 @@ function generateChartImage(layer) {
         state.currentLayerIndex = index;
         console.log("Selected layer:", state.layers[index].id); // Log when a layer is selected
         updateAxisDropZones();
+        updateLayerPanel(); // Refresh to update colors
       });
       panel.insertBefore(tab, document.getElementById("add-layer"));
     });
@@ -645,6 +662,13 @@ function generateChartImage(layer) {
       }));
     });
   });
+
+  const logoutBtn = document.getElementById("logout");
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", () => {
+      window.location.href = "http://localhost:80";
+    });
+  }
   
 });
 

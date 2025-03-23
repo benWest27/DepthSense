@@ -1,7 +1,7 @@
 {
   "name": "editor_service",
   "version": "1.0.0",
-  "description": "Editor service for DepthSense",
+  "description": "Editor service for Paraviz",
   "main": "server.js",
   "scripts": {
     "build": "echo 'No build step defined' && exit 0",

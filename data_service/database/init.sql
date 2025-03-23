@@ -1,5 +1,7 @@
 -- init.sql
 
+CREATE DATABASE IF NOT EXISTS paraviz;
+
 -- Create tables
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
@@ -47,4 +49,6 @@ CREATE INDEX IF NOT EXISTS idx_visualizations_created_by ON visualizations(creat
 CREATE INDEX IF NOT EXISTS idx_visualizations_dataset_id ON visualizations(dataset_id);
 
 -- Optionally, insert initial data:
--- INSERT INTO users (username, email, password_hash) VALUES ('admin', 'admin@example.com', 'hashed_password_here');
+INSERT INTO users (username, email, password_hash)
+VALUES ('admin', 'admin@example.com', 'password')
+ON CONFLICT (username) DO NOTHING;

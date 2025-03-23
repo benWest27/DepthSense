@@ -1,7 +1,7 @@
 const { Pool } = require('pg');
 const logger = require('../utils/logger');
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgres://admin:password@postgres:5432/depthsense'
+  connectionString: process.env.DATABASE_URL || 'postgres://admin:password@postgres:5432/paraviz'
 });
 
 async function getCSVRows(req, res) {
@@ -12,15 +12,13 @@ async function getCSVRows(req, res) {
       'SELECT row_number, data FROM csv_data WHERE dataset_id = $1 ORDER BY row_number',
       [datasetId]
     );
-    logger.info('CSV rows fetched successfully:', result.rows);
-    // Instead of conditionally parsing, if our "data" field is already an object (e.g. from a JSONB column),
-    // simply return it.
+    logger.info('Raw CSV rows query result, length:', result.rows.length);
+    // Log actual rows for debugging
+    console.log("getCSVRows - Query rows:", result.rows);
     res.json(result.rows.map(row => {
       return (typeof row.data === 'string') 
         ? JSON.parse(row.data) 
         : row.data;
-      // Alternatively, if all data is stored as JSON, you can simply do:
-      // return row.data;
     }));
   } catch (err) {
     logger.error('Error fetching CSV rows:', err);
