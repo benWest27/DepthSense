@@ -1,24 +1,33 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const axios = require("axios");
+const { Pool } = require("pg");
+const logger = require("../utils/logger");
 require("dotenv").config();
 
 const SECRET_KEY = process.env.JWT_SECRET || "supersecret";
-const DATA_SERVICE_URL = process.env.DATA_SERVICE_URL || "http://localhost:5003";
+
+const pool = new Pool({
+    host: process.env.DB_HOST || "localhost",
+    port: process.env.DB_PORT || 5432,
+    database: process.env.DB_NAME || "paraviz",
+    user: process.env.DB_USER || "admin",
+    password: process.env.DB_PASSWORD || "password",
+});
+
 // User Registration
 exports.register = async (req, res) => {
-    const { username, email, password } = req.body;
-
+    const { username, email, password, role } = req.body;
+    if (!["admin", "creator", "viewer"].includes(role)) {
+        return res.status(400).json({ error: "Invalid role" });
+    }
+    logger.info("🔍 Registering user:", { username, email, role });
     try {
-        // Hash the password
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Send user data to data_service to store in the database
-        const response = await axios.post(`${DATA_SERVICE_URL}/users`, {
-            username,
-            email,
-            password: hashedPassword
-        });
+        await pool.query(
+            "INSERT INTO users (username, email, password_hash, role) VALUES ($1, $2, $3, $4)",
+            [username, email, hashedPassword, role]
+        );
 
         res.status(201).json({ message: "User registered successfully!" });
     } catch (error) {
@@ -28,51 +37,43 @@ exports.register = async (req, res) => {
 };
 
 // User Login
-// User Login
 exports.login = async (req, res) => {
-    const { email, password } = req.body;
-
-    // Check for test account credentials
-    if (email === "test@example.com" && password === "password123") {
-        console.warn("WARNING: Test credentials used. Remove this check for production.");
-        const token = jwt.sign(
-            { userId: 0, username: "TestUser", email },
-            SECRET_KEY,
-            { expiresIn: "1h" }
-        );
-        return res.json({ 
-            token, 
-            warning: "Test credentials are being used. This bypass should be removed in production." 
-        });
-    }
-
+    const { username, password } = req.body; // changed: use username
+    logger.info("🔍 Logging in user:", { username });
     try {
-        // Fetch user from data_service
-        const response = await axios.get(`${DATA_SERVICE_URL}/users/${email}`);
-        const user = response.data;
+        const result = await pool.query('SELECT * FROM users WHERE username = $1', [username]); // changed query
+        const user = result.rows[0];
 
-        if (!user) return res.status(400).json({ error: "User not found" });
+        if (!user || !(await bcrypt.compare(password, user.password_hash))) {
+            return res.status(401).json({ error: 'Invalid credentials' });
+        }
 
-        // Compare passwords
-        const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) return res.status(400).json({ error: "Invalid credentials" });
-
-        // Generate JWT token
         const token = jwt.sign(
-            { userId: user.id, username: user.username, email },
+            { id: user.id, username: user.username, role: user.role },
             SECRET_KEY,
-            { expiresIn: "1h" }
+            { expiresIn: '1h' }
         );
 
         res.json({ token });
     } catch (error) {
-        console.error("Login error:", error);
-        res.status(500).json({ error: "Login failed" });
+        console.error('Login error:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 };
 
-
-// Verify Token (Protected Route)
+// Verify Token
 exports.verifyToken = (req, res) => {
-    res.json({ user: req.user });
+    logger.info("🔍 Verifying token");
+    const token = req.header("Authorization")?.split(" ")[1];
+    if (!token) return res.status(401).json({ error: "Missing token" });
+
+    try {
+        const decoded = jwt.verify(token, SECRET_KEY);
+        if (!["admin", "creator", "viewer"].includes(decoded.role)) {
+            throw new Error("Invalid role");
+        }
+        res.json({ user: decoded });
+    } catch (error) {
+        res.status(401).json({ error: "Invalid token" });
+    }
 };

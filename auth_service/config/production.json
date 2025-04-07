@@ -1,0 +1,20 @@
+{
+    "serverPort": 5000,
+    "jwt": {
+      "secret": "your_super_secure_secret_key",
+      "expiresIn": "1h"
+    },
+    "db": {
+      "host": "postgres",
+      "port": 5432,
+      "database": "paraviz",
+      "user": "admin",
+      "password": "password"
+    },
+    "logging": {
+      "level": "info",
+      "logFile": "logs/combined.log",
+      "errorFile": "logs/error.log"
+    }
+  }
+  

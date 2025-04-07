@@ -1,0 +1,18 @@
+{
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "puppeteer": "^24.6.0",
+    "supertest": "^7.1.0"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "body-parser": "^2.2.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.14.1",
+    "winston": "^3.17.0",
+    "csv-parser": "^3.0.0"
+  }
+}

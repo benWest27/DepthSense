@@ -2,9 +2,14 @@
 services:
 
   nginx:
+    image: nginx:latest
+    container_name: nginx
     build: ./nginx
     ports:
       - "80:80"
+    volumes:
+      - ./nginx:/etc/nginx
+      - ./nginx/public:/usr/share/nginx/html
     depends_on:
       - auth_service
       - editor_service
@@ -12,7 +17,7 @@ services:
       - data_service
       - postgres
     networks:
-      - app-network
+      - paraviz_network
 
 
   postgres:
@@ -28,7 +33,7 @@ services:
         - postgres_data:/var/lib/postgresql/data
         - ./database:/docker-entrypoint-initdb.d/init.sql
       networks:
-        - app-network
+        - paraviz_network
       healthcheck:
         test: ["CMD", "pg_isready", "-U", "admin"]
         interval: 10s
@@ -41,7 +46,7 @@ services:
     ports:
       - "5000:5000"
     environment:
-      - JWT_SECRET=${JWT_SECRET}
+      - JWT_SECRET=supersecret
       - DATA_SERVICE_URL=http://data_service:5003
       - DB_HOST=postgres
       - DB_PORT=5432
@@ -51,7 +56,7 @@ services:
     depends_on:
       - data_service
     networks:
-      - app-network
+      - paraviz_network
 
   editor_service:
     build: ./editor_service
@@ -63,7 +68,7 @@ services:
     depends_on:
       - data_service
     networks:
-      - app-network
+      - paraviz_network
 
   viewer_service:
     build: ./viewer_service
@@ -75,7 +80,7 @@ services:
     depends_on:
       - data_service
     networks:
-      - app-network
+      - paraviz_network
 
   data_service:
     build: ./data_service
@@ -91,13 +96,24 @@ services:
     depends_on:
       - postgres
     networks:
-      - app-network
+      - paraviz_network
+      
+prometheus:
+  image: prom/prometheus
+  ports:
+    - "9090:9090"
+  volumes:
+    - ./prometheus.yml:/etc/prometheus/prometheus.yml
 
+grafana:
+  image: grafana/grafana
+  ports:
+    - "3000:3000"
 
 volumes:
   postgres_data:
     driver: local
 
 networks:
-  app-network:
+  paraviz_network:
     driver: bridge

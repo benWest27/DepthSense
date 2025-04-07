@@ -2,6 +2,9 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const { Pool } = require('pg');
+const jwt = require('jsonwebtoken');
+
+const SECRET_KEY = process.env.SECRET_KEY || 'your-secret-key';
 
 // Database configuration
 const pool = new Pool({
@@ -27,6 +30,21 @@ const app = express();
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Restrict access to the viewer service to admin, creator, and viewer roles
+app.use((req, res, next) => {
+  const token = req.header("Authorization")?.split(" ")[1];
+  try {
+    const decoded = jwt.verify(token, SECRET_KEY);
+    if (!["admin", "creator", "viewer"].includes(decoded.role)) {
+      return res.status(403).json({ error: "Access denied: insufficient privileges" });
+    }
+    req.user = decoded;
+    next();
+  } catch (error) {
+    res.status(401).json({ error: "Invalid token" });
+  }
+});
 
 // Health check endpoint
 app.get('/health', async (req, res) => {

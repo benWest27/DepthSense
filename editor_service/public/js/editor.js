@@ -1,4 +1,24 @@
 document.addEventListener("DOMContentLoaded", () => {
+  // Authentication check: ensure user is logged in with admin or creator role.
+  const token = localStorage.getItem("jwt");
+  if (!token) {
+    alert("You must be logged in to use the editor service.");
+    window.location.href = "/"; // Redirect to login page
+    return;
+  }
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    if (payload.role !== "admin" && payload.role !== "creator") {
+      alert("Access denied: insufficient privileges.");
+      window.location.href = "/";
+      return;
+    }
+  } catch (error) {
+    console.error("Token verification failed:", error);
+    window.location.href = "/";
+    return;
+  }
+
   console.log("DOMContentLoaded: Editor service is starting.");
 
   // With globals:
@@ -75,7 +95,21 @@ document.addEventListener("DOMContentLoaded", () => {
   
   // NEW: Add function fetchDataForSource to load dataset content by ID
   function fetchDataForSource(sourceId) {
-    return fetch(`http://localhost:5003/api/datasets/${sourceId}`)
+    const token = localStorage.getItem("jwt");
+    if (!token) {
+      console.error("JWT token is missing. User must log in.");
+      alert("You must be logged in to fetch data sources.");
+      window.location.href = "/"; // Redirect to login page
+      return;
+    }
+
+    return fetch(`http://localhost:5003/api/datasets/${sourceId}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`, // Include the token in the Authorization header
+        'Content-Type': 'application/json'
+      },
+      mode: 'cors'
+    })
       .then(resp => {
         if (!resp.ok) throw new Error("Failed to fetch dataset " + sourceId);
         return resp.json();
@@ -83,8 +117,13 @@ document.addEventListener("DOMContentLoaded", () => {
       .then(data => {
         console.log("Dataset fetched for source", sourceId, ":", data);
         dataheader = data.column_names;
-        // Now fetch the full CSV rows by calling the new endpoint.
-        return fetch(`http://localhost:5003/api/data/rows/${data.id}`)
+        return fetch(`http://localhost:5003/api/data/rows/${data.id}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`, // Include the token for fetching rows
+            'Content-Type': 'application/json'
+          },
+          mode: 'cors'
+        })
           .then(resp => {
             if (!resp.ok) throw new Error("Failed to fetch CSV rows for dataset " + data.id);
             return resp.json();
@@ -333,16 +372,33 @@ function generateChartImage(layer) {
     });
   }
 
-  //fetchDataSourceList();
 
   // NEW: Modified fetchDataSourceList to optionally select a new source if provided.
   function fetchDataSourceList(newSourceId) {
-    fetch("http://localhost:5003/api/datasets")
+    const token = localStorage.getItem("jwt");
+    if (!token) {
+      console.error("JWT token is missing. User must log in.");
+      alert("You must be logged in to fetch data sources.");
+      window.location.href = "/"; // Redirect to login page
+      return;
+    }
+
+    fetch("http://localhost:5003/api/datasets", {
+      headers: {
+        'Authorization': `Bearer ${token}`, // Ensure the token is included
+        'Content-Type': 'application/json'
+      },
+      mode: 'cors'
+    })
       .then(resp => { 
         if (!resp.ok) throw new Error("Failed to fetch data source list");
         return resp.json();
       })
       .then(sources => {
+        if (!Array.isArray(sources)) {
+          console.error("Invalid response format: expected an array", sources);
+          throw new Error("Invalid data format received for datasets");
+        }
         dataSourceSelect.innerHTML = '<option value="">Select Data Source</option>';
         sources.forEach(source => {
           const option = document.createElement("option");
@@ -355,9 +411,10 @@ function generateChartImage(layer) {
           dataSourceSelect.dispatchEvent(new Event('change'));
         }
       })
-      .catch(err => console.error(err));
+      .catch(err => console.error("Error fetching data source list:", err));
   }
 
+  fetchDataSourceList();
   // NEW: Function to handle CSV file upload through the "Upload" button
  // function initCSVUpload() {
  //   const uploadButton = document.getElementById("upload");

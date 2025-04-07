@@ -2,7 +2,7 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
-const csv = require('csv-parser');
+const csv = require('csv-parser'); // Ensure csv-parser is installed and imported
 
 const router = express.Router();
 
@@ -22,6 +22,23 @@ router.get('/', (req, res) => {
     .on('error', (error) => {
       console.error("Error reading CSV:", error);
       res.status(500).json({ error: error.message });
+    });
+});
+
+// Example route to parse a CSV file
+router.get('/parse', (req, res) => {
+  const results = [];
+  const filePath = path.join(__dirname, '../data/sample.csv'); // Adjust the path as needed
+
+  fs.createReadStream(filePath)
+    .pipe(csv())
+    .on('data', (data) => results.push(data))
+    .on('end', () => {
+      res.json(results);
+    })
+    .on('error', (err) => {
+      console.error('Error reading CSV file:', err);
+      res.status(500).json({ error: 'Failed to parse CSV file' });
     });
 });
 

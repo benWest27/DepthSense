@@ -87,7 +87,11 @@ function createUploadOverlay() {
   container.querySelector("#upload-close-btn").addEventListener("click", removeOverlay);
   
   function removeOverlay() {
-    document.body.removeChild(overlay);
+    // Use the modern remove() API if available, otherwise check before removal.
+    if (overlay && overlay.parentNode) {
+      overlay.parentNode.removeChild(overlay);
+    }
+    // Alternatively, simply: overlay.remove();
   }
 }
 

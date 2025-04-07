@@ -1,7 +1,5 @@
 -- init.sql
 
-CREATE DATABASE IF NOT EXISTS paraviz;
-
 -- Create tables
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
