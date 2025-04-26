@@ -226,11 +226,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // Draw a Chart.js bar chart using the processed data.
 function generateChartImage(layer) {
+
     console.log("generateChartImage: Generating chart image for layer", layer.id);
     const offscreen = document.createElement("canvas");
     offscreen.width = state.canvasWidth;
     offscreen.height = state.canvasHeight;
     const ctxOffscreen = offscreen.getContext("2d");
+
+
 
     // Determine dropped fields.
     const colFields = layer.colFields ? layer.colFields : (layer.colField ? [layer.colField] : []);
@@ -323,6 +326,11 @@ function generateChartImage(layer) {
           plugins: { legend: { display: datasets.length > 1 } }
       }
     });
+    // Ensure Chart.js is loaded
+    if (typeof Chart === "undefined") {
+      console.error("Chart.js is not loaded. Please include Chart.js in your HTML.");
+      return;
+    }
 
     // If a numeric field was dropped, add a blue border to the corresponding drop zone.
     if (rowFields.length > 0 && rowFields[0].type === "number") {
