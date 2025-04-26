@@ -1,112 +1,163 @@
 document.addEventListener("DOMContentLoaded", () => {
-  // Function to handle login and navigate to the editor service
-  function navigateToEditor(event) {
-    console.log("Login form submitted"); // Debugging line
-    event.preventDefault(); // Prevent form submission
+  // State
+  let selectedRole = null;
 
-    // Get username and password from the form inputs
-    const username = document.getElementById("loginUsername").value; // changed from email to username
+  // Utility: Check if JWT exists and decode role
+  function getUserRoleFromToken() {
+    const token = localStorage.getItem("jwt");
+    if (!token) return null;
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.role;
+    } catch {
+      return null;
+    }
+  }
+
+  // Utility: Redirect based on role
+  function redirectToRoleService(role) {
+    if (role === "admin" || role === "creator") {
+      window.location.href = "/editor";
+    } else if (role === "viewer") {
+      window.location.href = "/viewer";
+    }
+  }
+
+  // Render the main welcome/role selection page
+  function renderWelcome() {
+    document.body.innerHTML = `
+      <div class="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-700" style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+        <h1 class="text-4xl font-bold text-white mb-8">Welcome to ParaViz</h1>
+        <div class="flex gap-6" style="display:flex;gap:24px;">
+          <button id="select-admin" class="bg-white py-3 px-8 rounded-xl shadow-md text-indigo-600 font-semibold hover:bg-gray-100 transition">Admin</button>
+          <button id="select-creator" class="bg-white py-3 px-8 rounded-xl shadow-md text-indigo-600 font-semibold hover:bg-gray-100 transition">Editor</button>
+          <button id="select-viewer" class="bg-white py-3 px-8 rounded-xl shadow-md text-indigo-600 font-semibold hover:bg-gray-100 transition">Viewer</button>
+        </div>
+      </div>
+    `;
+    document.getElementById("select-admin").onclick = () => showLoginForm("admin");
+    document.getElementById("select-creator").onclick = () => showLoginForm("creator");
+    document.getElementById("select-viewer").onclick = () => showLoginForm("viewer");
+  }
+
+  // Render the login/register form for the selected role
+  function showLoginForm(role) {
+    selectedRole = role;
+    document.body.innerHTML = `
+      <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-700" style="min-height:100vh;display:flex;align-items:center;justify-content:center;">
+        <div class="bg-white shadow-lg rounded-2xl p-8 w-full max-w-md">
+          <h1 class="text-3xl font-bold text-center text-gray-700 mb-2">ParaViz</h1>
+          <p class="text-center text-gray-500 mb-6">Login as <span style="text-transform:capitalize">${role}</span> to access your visualizations</p>
+          <form id="loginForm">
+            <div class="mb-4">
+              <label for="loginUsername" class="block text-gray-700 mb-1">Username</label>
+              <input type="text" id="loginUsername" class="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="your username" required />
+            </div>
+            <div class="mb-6">
+              <label for="loginPassword" class="block text-gray-700 mb-1">Password</label>
+              <input type="password" id="loginPassword" class="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="••••••••" required />
+            </div>
+            <button type="submit" class="w-full bg-indigo-600 text-white py-3 rounded-xl hover:bg-indigo-700 transition">Log In</button>
+          </form>
+          <div class="text-center mt-6">
+            <span class="text-sm text-gray-500">Don't have an account?</span>
+            <button id="showRegister" class="text-sm text-indigo-600 hover:text-indigo-800 ml-2" style="background:none;border:none;cursor:pointer;">Register</button>
+          </div>
+          <div class="text-center mt-2">
+            <button id="backToWelcome" class="text-xs text-gray-400 hover:text-gray-700" style="background:none;border:none;cursor:pointer;">Back</button>
+          </div>
+        </div>
+      </div>
+    `;
+    document.getElementById("loginForm").onsubmit = handleLogin;
+    document.getElementById("showRegister").onclick = () => showRegisterForm(role);
+    document.getElementById("backToWelcome").onclick = renderWelcome;
+  }
+
+  // Render the registration form for the selected role
+  function showRegisterForm(role) {
+    document.body.innerHTML = `
+      <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-700" style="min-height:100vh;display:flex;align-items:center;justify-content:center;">
+        <div class="bg-white shadow-lg rounded-2xl p-8 w-full max-w-md">
+          <h1 class="text-3xl font-bold text-center text-gray-700 mb-2">ParaViz</h1>
+          <p class="text-center text-gray-500 mb-6">Register as <span style="text-transform:capitalize">${role}</span></p>
+          <form id="registerForm">
+            <div class="mb-4">
+              <label for="registerUsername" class="block text-gray-700 mb-1">Username</label>
+              <input type="text" id="registerUsername" class="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="your username" required />
+            </div>
+            <div class="mb-4">
+              <label for="registerEmail" class="block text-gray-700 mb-1">Email Address</label>
+              <input type="email" id="registerEmail" class="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="you@example.com" required />
+            </div>
+            <div class="mb-6">
+              <label for="registerPassword" class="block text-gray-700 mb-1">Password</label>
+              <input type="password" id="registerPassword" class="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="••••••••" required />
+            </div>
+            <button type="submit" class="w-full bg-indigo-600 text-white py-3 rounded-xl hover:bg-indigo-700 transition">Register</button>
+          </form>
+          <div class="text-center mt-2">
+            <button id="backToLogin" class="text-xs text-gray-400 hover:text-gray-700" style="background:none;border:none;cursor:pointer;">Back</button>
+          </div>
+        </div>
+      </div>
+    `;
+    document.getElementById("registerForm").onsubmit = handleRegister;
+    document.getElementById("backToLogin").onclick = () => showLoginForm(role);
+  }
+
+  // Handle login form submission
+  function handleLogin(e) {
+    e.preventDefault();
+    const username = document.getElementById("loginUsername").value;
     const password = document.getElementById("loginPassword").value;
-
-    // Call the auth_service login endpoint
     fetch('/api/auth/login', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ username, password }) // sending username instead of email
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
     })
       .then(response => {
-        if (!response.ok) {
-          throw new Error("Authentication failed");
-        }
+        if (!response.ok) throw new Error("Authentication failed");
         return response.json();
       })
       .then(data => {
-        // Save the token (assumes response is { token: "..." })
         localStorage.setItem("jwt", data.token);
-
-        // Redirect to the editor UI
-        window.location.href = '/editor';
+        redirectToRoleService(selectedRole);
       })
       .catch(error => {
-        console.error("Error during authentication:", error);
-        alert("Authentication failed. Please check your credentials and try again.");
+        alert("Login failed. Please check your credentials.");
       });
   }
 
-  const loginForm = document.getElementById("loginForm");
-  const registrationForm = document.getElementById("registrationForm");
-
-  // Remove event listener from loginForm and attach to loginBtn
-  const loginBtn = document.getElementById("loginBtn");
-  if (loginBtn) {
-    console.log("Login button found, attaching event listener"); // Debugging line
-    loginBtn.addEventListener("click", navigateToEditor);
-  }
-
-  // Function to handle registration
-  function handleRegister(event) {
-    console.log("Register form submitted"); // Debugging line
-    event.preventDefault(); // Prevent form submission
-    console.log("Handling registration"); // Debugging line
-    const email = document.getElementById("email").value;
-    const password = document.getElementById("registerPassword").value;
+  // Handle registration form submission
+  function handleRegister(e) {
+    e.preventDefault();
     const username = document.getElementById("registerUsername").value;
-  
+    const email = document.getElementById("registerEmail").value;
+    const password = document.getElementById("registerPassword").value;
     fetch('/api/auth/register', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ username, email, password })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, email, password, role: selectedRole })
     })
       .then(response => {
-        if (!response.ok) {
-          throw new Error("Registration failed");
-        }
+        if (!response.ok) throw new Error("Registration failed");
         return response.json();
       })
       .then(() => {
         alert("Registration successful! Please log in.");
-        switchToLoginForm();
+        showLoginForm(selectedRole);
       })
       .catch(error => {
-        console.error("Error during registration:", error);
         alert("Registration failed. Please try again.");
-      })
-      .finally(() => { debugger; });
+      });
   }
 
-  function switchToRegisterForm() {
-    console.log("Switching to registration form"); // Debugging line
-    document.getElementById("formTitle").textContent = "Register";
-    loginForm.style.visibility = "hidden";
-    registrationForm.style.visibility = "visible";
-  }
-
-  // Function to switch back to the login form
-  function switchToLoginForm() {
-    console.log("Switching to login form"); // Debugging line
-    document.getElementById("formTitle").textContent = "Login";
-    loginForm.style.visibility = "visible";
-    registrationForm.style.visibility = "hidden";
-  }
-
-  // Remove listener from registrationForm and attach to registerSubmitBtn
-  const registerSubmitBtn = document.getElementById("registerSubmitBtn");
-  if (registerSubmitBtn) {
-    registerSubmitBtn.addEventListener("click", handleRegister);
+  // On load: check if already logged in and redirect, else show welcome
+  const userRole = getUserRoleFromToken();
+  if (userRole) {
+    redirectToRoleService(userRole);
   } else {
-    console.error("Register submit button not found!"); // Debugging line
+    renderWelcome();
   }
-
-  // Attach click event to toggle forms.
-  document.getElementById("registerBtn").addEventListener("click", switchToRegisterForm);
-
-  // Expose functions to the global scope
-  window.switchToRegisterForm = switchToRegisterForm;
-  window.switchToLoginForm = switchToLoginForm;
-
-  console.log("Attaching event listeners for switching forms"); // Debugging line
 });

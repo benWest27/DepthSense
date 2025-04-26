@@ -673,8 +673,20 @@ function generateChartImage(layer) {
     state.layers[state.currentLayerIndex].colField = { field: data.field, type: data.type };
     state.layers[state.currentLayerIndex].coldata = fieldValues;
 
-    tryGenerateChartForActiveLayer() 
+    // --- Recalculate chart: X axis = unique bins, Y axis = count per label ---
+    const valueCounts = {};
+    fieldValues.forEach(val => {
+      if (val !== undefined && val !== null) {
+        valueCounts[val] = (valueCounts[val] || 0) + 1;
+      }
+    });
+    state.layers[state.currentLayerIndex].data = Object.entries(valueCounts).map(([label, count]) => ({
+      x: label,
+      y: count
+    }));
+
     updateAxisDropZones();
+    generateChartImage(state.layers[state.currentLayerIndex]);
     render();
   });
 
@@ -697,9 +709,21 @@ function generateChartImage(layer) {
     const fieldValues = sourceArray.map(row => row[data.field]);
     state.layers[state.currentLayerIndex].rowField = { field: data.field, type: data.type };
     state.layers[state.currentLayerIndex].rowdata = fieldValues;
-    
-    tryGenerateChartForActiveLayer() 
+
+    // --- Recalculate chart: X axis = unique bins, Y axis = count per label ---
+    const valueCounts = {};
+    fieldValues.forEach(val => {
+      if (val !== undefined && val !== null) {
+        valueCounts[val] = (valueCounts[val] || 0) + 1;
+      }
+    });
+    state.layers[state.currentLayerIndex].data = Object.entries(valueCounts).map(([label, count]) => ({
+      x: label,
+      y: count
+    }));
+
     updateAxisDropZones();
+    generateChartImage(state.layers[state.currentLayerIndex]);
     render();
   });
 
