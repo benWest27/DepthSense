@@ -1,7 +1,7 @@
 FROM postgres:14
 
 # Set environment variables for PostgreSQL
-ENV POSTGRES_DB=depthsense
+ENV POSTGRES_DB=paraviz
 ENV POSTGRES_USER=admin
 ENV POSTGRES_PASSWORD=password
 

@@ -12,7 +12,7 @@ const pool = new Pool({
 });
 
 // Ensure the users table exists
-const createUserTable = async () => {
+const createUserTable = async (pool) => {
   const query = `
     CREATE TABLE IF NOT EXISTS users (
       id SERIAL PRIMARY KEY,
@@ -90,4 +90,5 @@ module.exports = {
   findUserByUsernameOrEmail,
   getAllUsers,
   deleteUserById,
+  createUserTable // ✅ add this to export the initializer
 };
