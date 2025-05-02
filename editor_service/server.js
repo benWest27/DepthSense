@@ -13,6 +13,22 @@ const app = express();
 
 // Middleware
 app.use(cors());
+
+// NEW: Update Content Security Policy header to allow scripts, fonts, inline styles, connections, and images (including data: URLs)
+app.use((req, res, next) => {
+  res.setHeader(
+    "Content-Security-Policy",
+    "default-src 'self'; " +
+    "script-src 'self' https://cdn.jsdelivr.net; " +
+    "script-src-elem 'self' https://cdn.jsdelivr.net; " +
+    "connect-src 'self' http://localhost:5003; " +
+    "style-src 'self' 'unsafe-inline'; " +
+    "font-src 'self' data:; " +
+    "img-src 'self' data:;"
+  );
+  next();
+});
+
 app.use(express.json());
 
 // Health check endpoint (no auth required)

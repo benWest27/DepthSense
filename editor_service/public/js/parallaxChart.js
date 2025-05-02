@@ -1,4 +1,3 @@
-
 // --- In parallaxChart.js ---
 class ParallaxChart {
     constructor(state, container, dynamicCanvas, ctx) {
@@ -16,7 +15,7 @@ class ParallaxChart {
         canvasHeight: 600,
         layerSpacing: 2,
         layers: [ 
-            { id: 1, z: 0.1, rowField: null, colField: null, rowdata: [], coldata: [] }
+            { id: 1, z: 0.1, rowField: null, colField: null, rowdata: [], coldata: [], datasetId: null}
         ],
         currentLayerIndex: -1
         };
@@ -85,6 +84,151 @@ class ParallaxChart {
         img.dataset.depth = layer.z || 0.1;
         await this.updateLayerImageTransform(img, container, currentMouseX, currentMouseY, zoomValue);
     }
+
+    getSerializableState() {
+        // Deep copy state, but remove any non-serializable or DOM references
+        const stateCopy = JSON.parse(JSON.stringify(this.state));
+        // Remove cachedImage, rowdata, coldata from layers to avoid storing large base64 images and row data
+        if (Array.isArray(stateCopy.layers)) {
+            stateCopy.layers.forEach(layer => {
+                if (layer.cachedImage) delete layer.cachedImage;
+                if (layer.rowdata) delete layer.rowdata;
+                if (layer.coldata) delete layer.coldata;
+            });
+        }
+        // Update visualization name label if a visualizationName is saved in state
+        if (stateCopy.visualizationName) {
+            const label = document.getElementById("visualization-name");
+            if (label) {
+                label.textContent = stateCopy.visualizationName;
+            }
+        }
+        return stateCopy;
+    }
+
+    async setStateFromSerialized(serializedState) {
+        if (!serializedState || typeof serializedState !== "object") return;
+        this.state = JSON.parse(JSON.stringify(serializedState));
+    
+        if (this.state.canvasWidth && this.state.canvasHeight) {
+            this.offscreenCanvas.width = this.state.canvasWidth;
+            this.offscreenCanvas.height = this.state.canvasHeight;
+        }
+    
+        if (Array.isArray(this.state.layers)) {
+            for (const layer of this.state.layers) {
+                if (layer.datasetId) {
+                    try {
+                        const fetchedData = await window.fetchDataForSource(layer.datasetId);
+                        const rowArray = Array.isArray(fetchedData) ? fetchedData : (fetchedData && fetchedData.csvRows ? fetchedData.csvRows : []);
+    
+                        if (layer.rowField && layer.rowField.field) {
+                            layer.rowdata = rowArray.map(row => row[layer.rowField.field]);
+                        }
+                        if (layer.colField && layer.colField.field) {
+                            layer.coldata = rowArray.map(row => row[layer.colField.field]);
+                        }
+    
+                        // After fetching, update layer data again
+                        window.editorController.processLayerData(layer);
+                        window.editorController.generateChartImage(layer);
+    
+                    } catch (err) {
+                        console.error(`Error fetching data for datasetId ${layer.datasetId}:`, err);
+                        layer.rowdata = [];
+                        layer.coldata = [];
+                    }
+                }
+            }
+        }
+    
+        // Update UI after data fetching is complete
+        
+        if (window.updateLayerPanel) window.updateLayerPanel();
+        if (window.updateAxisDropZones) window.updateAxisDropZones();
+        if (window.updateCanvasProperties) window.updateCanvasProperties();
+        if (window.editorController.generateChartImage) window.editorController.generateChartImage(this.state.layers[this.state.currentLayerIndex]);
+        if (window.render) window.render();
+    }
+
+    // Restore the ParallaxChart state from a serialized state object
+    //async setStateFromSerialized(serializedState) {
+    //    if (!serializedState || typeof serializedState !== "object") return;
+    //    // Deep copy to avoid reference issues
+    //    this.state = JSON.parse(JSON.stringify(serializedState));
+    //    // Update offscreen canvas size if dimensions changed
+    //    if (this.state.canvasWidth && this.state.canvasHeight) {
+    //        this.offscreenCanvas.width = this.state.canvasWidth;
+    //        this.offscreenCanvas.height = this.state.canvasHeight;
+    //    }
+    //    // For each layer, fetch dataset rows and populate rowdata/coldata
+    //    if (Array.isArray(this.state.layers)) {
+    //        for (const layer of this.state.layers) {
+    //            if (layer.datasetId) {
+    //                try {
+    //                    const rows = await window.fetchDataForSource(layer.datasetId);
+    //                    const rowArray = Array.isArray(rows) ? rows : (rows && rows.csvRows ? rows.csvRows : []);
+    //                    if (layer.rowField && layer.rowField.field) {
+    //                        layer.rowdata = rowArray.map(row => row[layer.rowField.field]);
+    //                    }
+    //                    if (layer.colField && layer.colField.field) {
+    //                        layer.coldata = rowArray.map(row => row[layer.colField.field]);
+    //                    }
+    //                } catch (err) {
+    //                    layer.rowdata = [];
+    //                    layer.coldata = [];
+    //                }
+    //            } else {
+    //                layer.rowdata = [];
+    //                layer.coldata = [];
+    //            }
+    //        }
+    //    }
+    //    // Trigger global UI updates after state restoration
+    //    if (window.updateLayerPanel && typeof window.updateLayerPanel === "function") {
+    //        window.updateLayerPanel();
+    //    }
+    //    if (window.updateAxisDropZones && typeof window.updateAxisDropZones === "function") {
+    //        window.updateAxisDropZones();
+    //    }
+    //    if (window.updateCanvasProperties && typeof window.updateCanvasProperties === "function") {
+    //        window.updateCanvasProperties();
+    //    }
+    //    // NEW: Trigger a re-render of the chart images so the dynamic layer updates.
+    //    // Using default parameters (e.g., no mouse offset and current zoom)
+    //    this.updateAllLayerImageTransforms(this.container, 0, 0, this.state.zoom);
+//
+    //    // NEW: Call tryGenerateChartForActiveLayer() via the global editorController.
+    //    if (window.editorController && typeof window.editorController.tryGenerateChartForActiveLayer === "function") {
+    //        // Assume DataSource and zoom slider exist globally (adjust parameter passing as needed)
+    //        // const zoomSlider = document.getElementById("zoom");
+    //        // const currentZoom = this.state.zoom;
+    //        console.log("ParallaxChart, tryGenerateChartForActiveLayer:");
+    //        // Here, window.DataSource should be defined in your editor context.
+    //        window.editorController.tryGenerateChartForActiveLayer();
+    //    }
+    //    // NEW: Call editor.js functions after state restoration.
+    //    if (window.updateAxisDropZones && typeof window.updateAxisDropZones === "function") {
+    //        console.log("Calling updateAxisDropZones after state restoration.");
+    //        window.updateAxisDropZones();
+    //    }
+    //    if (this.state.currentLayerIndex >= 0 && window.editorController && typeof window.editorController.generateChartImage === "function") {
+    //        console.log("Calling generateChartImage this.state.currentLayerIndex:", this.state.currentLayerIndex);
+    //        console.log("this.state.layers:", this.state.layers);
+    //        console.log("this.state.layers[this.state.currentLayerIndex]:", this.state.layers[this.state.currentLayerIndex]);
+    //        window.editorController.generateChartImage(this.state.layers[this.state.currentLayerIndex]);
+    //        console.log("Calling generateChartImage for current layer after state restoration.");
+    //    }
+    //    if (window.render && typeof window.render === "function") {
+    //        console.log("Calling render() after state restoration.");
+    //        window.render();
+    //    }
+    //    
+    //    // Also call tryGenerateChartForActiveLayer via editorController if available.
+    //    if (window.editorController && typeof window.editorController.tryGenerateChartForActiveLayer === "function") {
+    //        window.editorController.tryGenerateChartForActiveLayer();
+    //    }
+    //}
 }
 
 // Export for module usage (or attach to window for a browser environment)

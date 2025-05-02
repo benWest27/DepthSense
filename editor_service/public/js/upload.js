@@ -29,6 +29,7 @@ function createUploadOverlay() {
     <button class="close-btn" id="upload-close-btn" 
             style="position:absolute; top:10px; right:10px; background:none; border:none; font-size:20px; cursor:pointer;">&times;</button>
     <h2 style="text-align:center; margin-top:0;">Upload CSV</h2>
+    <label style="display:block; margin-bottom:10px; color: black;">Please select a CSV file</label>
     <div style="margin:20px 0;">
       <input type="file" id="upload-file-input" accept=".csv" style="display:none;" />
       <button id="browse-btn" style="padding:8px 12px; cursor:pointer;">Browse...</button>

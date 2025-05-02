@@ -14,12 +14,14 @@ async function getCSVRows(req, res) {
     );
     logger.info('Raw CSV rows query result, length:', result.rows.length);
     // Log actual rows for debugging
-    console.log("getCSVRows - Query rows:", result.rows);
-    res.json(result.rows.map(row => {
+    console.log("getCSVRows - Query rows count:", result.rows.length);
+    const csvRows = result.rows.map(row => {
       return (typeof row.data === 'string') 
         ? JSON.parse(row.data) 
         : row.data;
-    }));
+    });
+    logger.info(`Successfully retrieved CSV rows for dataset ID: ${datasetId}`);
+    res.json(csvRows);
   } catch (err) {
     logger.error('Error fetching CSV rows:', err);
     res.status(500).json({ error: err.message });

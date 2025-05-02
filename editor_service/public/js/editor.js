@@ -66,27 +66,33 @@ document.addEventListener("DOMContentLoaded", () => {
     const selectedSourceId = e.target.value;
     if (selectedSourceId) {
       console.log("Data source selected:", selectedSourceId);
-      fetchDataForSource(selectedSourceId)
+      window.fetchDataForSource(selectedSourceId)
         .then(() => {
           // Do not overwrite DataSource here because it was already set.
           updateFieldsFromData();
-          render();
-          tryGenerateChartForActiveLayer();
+          window.render();
+          if(editorController && typeof editorController.tryGenerateChartForActiveLayer === "function"){
+             editorController.tryGenerateChartForActiveLayer();
+          }
         })
         .catch(err => {
           console.error("Error fetching data for source:", selectedSourceId, err);
           alert("Failed to load data for the selected source.");
           DataSource = [];
           updateFieldsFromData();
-          render();
-          tryGenerateChartForActiveLayer();
+          window.render();
+          if(editorController && typeof editorController.tryGenerateChartForActiveLayer === "function"){
+             editorController.tryGenerateChartForActiveLayer();
+          }
         });
     } else {
       console.log("No data source selected.");
       DataSource = [];
       updateFieldsFromData();
-      render();
-      tryGenerateChartForActiveLayer();
+      window.render();
+      if(editorController && typeof editorController.tryGenerateChartForActiveLayer === "function"){
+         editorController.tryGenerateChartForActiveLayer();
+      }
     }
     state.currentLayerIndex = state.layers.length > 0 ? 0 : -1;
     updateLayerPanel();
@@ -94,7 +100,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   
   // NEW: Add function fetchDataForSource to load dataset content by ID
-  function fetchDataForSource(sourceId) {
+  window.fetchDataForSource = function(sourceId) {
     const token = localStorage.getItem("jwt");
     if (!token) {
       console.error("JWT token is missing. User must log in.");
@@ -132,7 +138,7 @@ document.addEventListener("DOMContentLoaded", () => {
             DataSource = csvRows;
             console.log("CSV rows fetched for dataset", data.id, ":", csvRows);
             updateFieldsFromData();
-            render();
+            window.render();
             return data;
           });
       })
@@ -180,20 +186,21 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   
   // --- Function: tryGenerateChartForActiveLayer ---
-  function tryGenerateChartForActiveLayer() {
+  window.editorController.tryGenerateChartForActiveLayer = function () {
     if (state.currentLayerIndex < 0 || state.currentLayerIndex >= state.layers.length) {
       console.warn("No valid layer selected for chart generation.");
       return;
     }
+    console.log("tryGenerateChartForActiveLayer: Generating chart for layer", state.currentLayerIndex); 
     const layer = state.layers[state.currentLayerIndex];
     if (layer.colField && layer.rowField&& layer.coldata.length && layer.rowdata.length) {
-      processLayerData(layer);
-      generateChartImage(layer);
+      window.editorController.processLayerData(layer);
+      window.editorController.generateChartImage(layer);
     }
   }
 
   // --- Function: processLayerData ---
-  function processLayerData(layer) {
+  window.editorController.processLayerData = function (layer) {
     // Determine the actual rows array from DataSource.
     let rows = [];
     if (Array.isArray(DataSource)) {
@@ -225,7 +232,7 @@ document.addEventListener("DOMContentLoaded", () => {
   
 
 // Draw a Chart.js bar chart using the processed data.
-function generateChartImage(layer) {
+window.editorController.generateChartImage = function (layer) {
 
     console.log("generateChartImage: Generating chart image for layer", layer.id);
     const offscreen = document.createElement("canvas");
@@ -293,6 +300,12 @@ function generateChartImage(layer) {
               (layer.colors && layer.colors[cField.field]) || "rgba(255,99,132,0.7)"
         });
     }
+
+        // Ensure Chart.js is loaded
+    if (typeof Chart === "undefined") {
+      console.error("Chart.js is not loaded. Please include Chart.js in your HTML.");
+      return;
+    }
     
     // Create the Chart.js chart.
     const chart = new Chart(ctxOffscreen, {
@@ -326,11 +339,7 @@ function generateChartImage(layer) {
           plugins: { legend: { display: datasets.length > 1 } }
       }
     });
-    // Ensure Chart.js is loaded
-    if (typeof Chart === "undefined") {
-      console.error("Chart.js is not loaded. Please include Chart.js in your HTML.");
-      return;
-    }
+
 
     // If a numeric field was dropped, add a blue border to the corresponding drop zone.
     if (rowFields.length > 0 && rowFields[0].type === "number") {
@@ -479,7 +488,7 @@ function generateChartImage(layer) {
   window.addEventListener("resize", () => {
     console.log("resize: Window resized, updating canvas.");
     updateCanvasProperties();
-    render();
+    window.render();
   });
 
   // Input controls (focal, zoom, marker size, etc.)
@@ -488,7 +497,7 @@ function generateChartImage(layer) {
       console.log("horizontal-focal slider fired with value:", e.target.value);
       state.focalPoint.x = parseFloat(e.target.value) / 100;
       console.log("horizontal-focal: Updated focalPoint.x to", state.focalPoint.x);
-      render();
+      window.render();
     }
   });
   document.getElementById("vertical-focal").addEventListener("input", (e) => {
@@ -496,14 +505,14 @@ function generateChartImage(layer) {
       console.log("vertical-focal slider fired with value:", e.target.value);
       state.focalPoint.y = parseFloat(e.target.value) / 100;
       console.log("vertical-focal: Updated focalPoint.y to", state.focalPoint.y);
-      render();
+      window.render();
     }
   });
 
   document.getElementById("zoom").addEventListener("input", (e) => {
     state.zoom = parseFloat(e.target.value);
     console.log("zoom: Updated zoom to", state.zoom);
-    render();
+    window.render();
   });
 
   container.addEventListener("wheel", (e) => {
@@ -522,9 +531,9 @@ function generateChartImage(layer) {
     state.markerSize = parseInt(e.target.value);
     console.log("marker-size: Updated markerSize to", state.markerSize);
     state.layers.forEach(element => {
-      generateChartImage(element); // Regenerate the chart for each layer with the new marker size
+      window.editorController.generateChartImage(element); // Regenerate the chart for each layer with the new marker size
     });
-    render();
+    window.render();
   });
   //document.getElementById("toggle-mouse-control").addEventListener("click", () => {
   //  state.mouseControl = !state.mouseControl;
@@ -539,7 +548,7 @@ function generateChartImage(layer) {
       state.focalPoint.x = e.offsetX / canvas.width;
       state.focalPoint.y = e.offsetY / canvas.height;
       console.log("mousemove: Updated focalPoint to", state.focalPoint);
-      render();
+      window.render();
     }
   });
 
@@ -547,7 +556,7 @@ function generateChartImage(layer) {
   container.addEventListener("mouseenter", () => {
     state.mouseControl = true;
     state.sliderFocal = false;
-    console.log("mouseenter: Set state.mouseControl =",state.mouseControl," and state.sliderFocal = ", state.sliderFocal);
+   // console.log("mouseenter: Set state.mouseControl =",state.mouseControl," and state.sliderFocal = ", state.sliderFocal);
   });
 
 
@@ -572,8 +581,8 @@ function generateChartImage(layer) {
     const verFocal = parseFloat(document.getElementById("vertical-focal").value) / 100;
     state.focalPoint.x = horFocal;
     state.focalPoint.y = verFocal;
-    console.log("mouseenter: Set state.mouseControl =",state.mouseControl," and state.sliderFocal = ", state.sliderFocal);
-    render();
+   // console.log("mouseenter: Set state.mouseControl =",state.mouseControl," and state.sliderFocal = ", state.sliderFocal);
+   window.render();
   });
 
   document.getElementById("layer-spacing").addEventListener("input", (e) => {
@@ -604,8 +613,9 @@ function generateChartImage(layer) {
       tab.addEventListener("click", () => {
         state.currentLayerIndex = index;
         console.log("Selected layer:", state.layers[index].id); // Log when a layer is selected
-        updateAxisDropZones();
-        updateLayerPanel(); // Refresh to update colors
+        // Call global UI update so the latest state is used:
+        window.updateAxisDropZones();
+        window.updateLayerPanel();
       });
       panel.insertBefore(tab, document.getElementById("add-layer"));
     });
@@ -639,11 +649,11 @@ function generateChartImage(layer) {
    // "Add Layer" button: Create a new layer in state and update UI.
    document.getElementById("add-layer").addEventListener("click", () => {
     const newId = state.layers.length + 1;
-    const newLayer = { id: newId, z: newId * 0.1, rowField: null, colField: null, data: [] };
+    const newLayer = { id: newId, z: newId * 0.1, rowField: null, colField: null, data: [], datasetId: dataSourceSelect.value || null };
     state.layers.push(newLayer);
     state.currentLayerIndex = state.layers.length - 1;
-    updateLayerPanel();
-    updateAxisDropZones();
+    window.updateLayerPanel();
+    window.updateAxisDropZones();
   });
 
 
@@ -678,9 +688,13 @@ function generateChartImage(layer) {
     }
     // Map the field values.
     const fieldValues = sourceArray.map(row => row[data.field]);
-    state.layers[state.currentLayerIndex].colField = { field: data.field, type: data.type };
-    state.layers[state.currentLayerIndex].coldata = fieldValues;
-
+    const currentLayer = state.layers[state.currentLayerIndex];
+    currentLayer.colField = { field: data.field, type: data.type };
+    currentLayer.coldata = fieldValues;
+    // Set datasetId if not already set
+    if (!currentLayer.datasetId && dataSourceSelect.value) {
+      currentLayer.datasetId = dataSourceSelect.value;
+    }
     // --- Recalculate chart: X axis = unique bins, Y axis = count per label ---
     const valueCounts = {};
     fieldValues.forEach(val => {
@@ -693,9 +707,9 @@ function generateChartImage(layer) {
       y: count
     }));
 
-    updateAxisDropZones();
-    generateChartImage(state.layers[state.currentLayerIndex]);
-    render();
+    window.updateAxisDropZones();
+    window.editorController.generateChartImage(state.layers[state.currentLayerIndex]);
+    window.render();
   });
 
   
@@ -715,9 +729,14 @@ function generateChartImage(layer) {
       return;
     }
     const fieldValues = sourceArray.map(row => row[data.field]);
-    state.layers[state.currentLayerIndex].rowField = { field: data.field, type: data.type };
-    state.layers[state.currentLayerIndex].rowdata = fieldValues;
-
+    const currentLayer = state.layers[state.currentLayerIndex];
+    currentLayer.rowField = { field: data.field, type: data.type };
+    currentLayer.rowdata = fieldValues;
+    // Set datasetId if not already set
+    if (!currentLayer.datasetId && dataSourceSelect.value) {
+      currentLayer.datasetId = dataSourceSelect.value;
+    }
+    
     // --- Recalculate chart: X axis = unique bins, Y axis = count per label ---
     const valueCounts = {};
     fieldValues.forEach(val => {
@@ -730,13 +749,13 @@ function generateChartImage(layer) {
       y: count
     }));
 
-    updateAxisDropZones();
-    generateChartImage(state.layers[state.currentLayerIndex]);
-    render();
+    window.updateAxisDropZones();
+    window.editorController.generateChartImage(state.layers[state.currentLayerIndex]);
+    window.render();
   });
 
 
-  function render() {
+  window.render = function() {
     parallaxChart.updateAllLayerImageTransforms(container, currentMouseX, currentMouseY, parseFloat(zoomSlider.value));
   }
   // Setup drag & drop for any preexisting draggable fields.
@@ -755,6 +774,7 @@ function generateChartImage(layer) {
   const logoutBtn = document.getElementById("logout");
   if (logoutBtn) {
     logoutBtn.addEventListener("click", () => {
+      localStorage.removeItem("jwt");
       window.location.href = "http://localhost:80";
     });
   }
@@ -764,3 +784,93 @@ function generateChartImage(layer) {
 // Remove require(...) calls and use globally attached objects.
 const parallaxChart = window.parallaxChart;
 const editorController = window.editorController; // Ensure editorController is attached to window (via a similar change in its file)
+
+// Define global UI update functions for editor updates
+window.updateLayerPanel = function() {
+    console.log("Global updateLayerPanel: updating layer panel...");
+    const state = window.parallaxChart ? window.parallaxChart.state : {};
+    const panel = document.getElementById("layer-panel");
+    // Clear the panel completely.
+    panel.innerHTML = "";
+    // Recreate a tab for each layer.
+    (state.layers || []).forEach((layer, index) => {
+      const tab = document.createElement("div");
+      tab.className = "layer-tab";
+      if (index === state.currentLayerIndex) { 
+        tab.classList.add("selected"); 
+        tab.style.backgroundColor = "#0078d7";
+        console.log("Selected layer:", layer.id);
+      } else {
+        tab.style.backgroundColor = "white";
+      }
+      tab.textContent = `Layer ${index + 1}`;
+      tab.dataset.layerIndex = index;
+      tab.addEventListener("click", () => {
+        state.currentLayerIndex = index;
+        console.log("Selected layer:", state.layers[index].id);
+        window.updateAxisDropZones();
+        window.updateLayerPanel();
+      });
+      panel.appendChild(tab);
+    });
+    // Recreate the Add Layer Button with its event listener.
+    const addLayerButton = document.createElement("button");
+    addLayerButton.id = "add-layer";
+    addLayerButton.className = "editorButton";
+    addLayerButton.textContent = "Add Layer";
+    addLayerButton.addEventListener("click", () => {
+      const dsSelect = document.getElementById("data-source-select"); // Retrieve dynamically
+      const newId = state.layers.length + 1;
+      const newLayer = { id: newId, z: newId * 0.1, rowField: null, colField: null, data: [], datasetId: dsSelect ? dsSelect.value : null };
+      state.layers.push(newLayer);
+      state.currentLayerIndex = state.layers.length - 1;
+      window.updateLayerPanel();
+      window.updateAxisDropZones();
+    });
+    panel.appendChild(addLayerButton);
+};
+
+
+window.updateAxisDropZones = function() {
+    console.log("Global updateAxisDropZones: updating axis drop zones...");
+    const state = window.parallaxChart ? window.parallaxChart.state : {};
+    if (!state.layers || state.currentLayerIndex < 0 || state.currentLayerIndex >= state.layers.length) {
+      console.warn("No valid layer selected for axis drop zones.");
+      return;
+    }
+    const layer = state.layers[state.currentLayerIndex];
+    const colDropZone = document.getElementById("column-drop-zone");
+    const rowDropZone = document.getElementById("row-drop-zone");
+    colDropZone.innerHTML = "";
+    rowDropZone.innerHTML = "";
+    if (layer.colField) {
+      const el = document.createElement("div");
+      el.className = "axis-field";
+      el.textContent = layer.colField.field;
+      colDropZone.appendChild(el);
+    }
+    if (layer.rowField) {
+      const el = document.createElement("div");
+      el.className = "axis-field";
+      el.textContent = layer.rowField.field;
+      rowDropZone.appendChild(el);
+    }
+};
+
+window.updateCanvasProperties = function() {
+    console.log("Global updateCanvasProperties: updating canvas properties...");
+    const state = window.parallaxChart ? window.parallaxChart.state : {};
+    const canvas = document.getElementById("dynamic-layer");
+    if (canvas && state) {
+       console.log("updateCanvasProperties: Updating canvas dimensions.");
+       canvas.style.left = state.canvasX + "px";
+       canvas.style.top = state.canvasY + "px";
+       canvas.width = state.canvasWidth;
+       canvas.height = state.canvasHeight;
+    }
+};
+
+window.editorController = window.editorController || {};
+//window.editorController.tryGenerateChartForActiveLayer = tryGenerateChartForActiveLayer;
+//window.editorController.generateChartImage = generateChartImage;
+//window.render = render;

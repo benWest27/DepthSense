@@ -10,8 +10,12 @@
     <div class="background-container">
       <header class="editor-header">
         <div class="header-buttons">
-            <button class="button">Upload</button>
-            <button class="button">Logout</button>
+          <label id="visualization-name" >unkown</label>
+            <button id="upload" class="button">Upload</button>
+            <button id="logout" class="button">Logout</button>
+            <button id="save" class="button">Save</button>
+            <button id="load" class="button">Load</button>
+            <button id="view" class="button">view</button>
         </div>
       </header>
     </div>
@@ -87,9 +91,11 @@
   
     </div>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="js/parallaxChart.js"></script>
+    <!-- Add more script tags as needed for each JavaScript file -->
     <script src="js/upload.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/editor.js"></script>
+    <script src="js/parallaxChart.js"></script>
+    <script src="js/visualization.js"></script>
 </body>
 </html>

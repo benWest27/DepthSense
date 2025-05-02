@@ -44,8 +44,10 @@ const insertVisualization = async (title, description, data, createdBy = null) =
       'INSERT INTO visualizations (title, description, data, created_by) VALUES ($1, $2, $3, $4) RETURNING *',
       [title, description, JSON.stringify(data), createdBy || null]
     );
+    logger.info(`✅ Visualization inserted successfully with ID: ${result.rows[0].id}`);
     return result.rows[0];
   } catch (error) {
+    logger.error('❌ Failed to insert visualization:', error);
     handleError(error, 'insert visualization');
   }
 };
@@ -54,8 +56,10 @@ const insertVisualization = async (title, description, data, createdBy = null) =
 const getAllVisualizations = async () => {
   try {
     const result = await pool.query('SELECT * FROM visualizations ORDER BY created_at DESC');
+    logger.info(`✅ Fetched ${result.rows.length} visualizations successfully.`);
     return result.rows;
   } catch (error) {
+    logger.error('❌ Failed to fetch all visualizations:', error);
     handleError(error, 'fetch all visualizations');
   }
 };
@@ -64,8 +68,14 @@ const getAllVisualizations = async () => {
 const getVisualizationById = async (id) => {
   try {
     const result = await pool.query('SELECT * FROM visualizations WHERE id = $1', [id]);
+    if (result.rows.length > 0) {
+      logger.info(`✅ Fetched visualization successfully with ID: ${id}`);
+    } else {
+      logger.info(`ℹ️ No visualization found with ID: ${id}`);
+    }
     return result.rows[0];
   } catch (error) {
+    logger.error(`❌ Failed to fetch visualization with ID: ${id}`);
     handleError(error, 'fetch visualization', id);
   }
 };
@@ -77,8 +87,14 @@ const updateVisualization = async (id, title, description, data) => {
       'UPDATE visualizations SET title = $1, description = $2, data = $3 WHERE id = $4 RETURNING *',
       [title, description, JSON.stringify(data), id]
     );
+    if (result.rowCount > 0) {
+      logger.info(`✅ Visualization updated successfully with ID: ${id}`);
+    } else {
+      logger.info(`ℹ️ No visualization updated with ID: ${id}`);
+    }
     return result.rows[0];
   } catch (error) {
+    logger.error('❌ Failed to update visualization:', error);
     handleError(error, 'update visualization', id);
   }
 };
@@ -86,9 +102,16 @@ const updateVisualization = async (id, title, description, data) => {
 // Delete Visualization
 const deleteVisualization = async (id) => {
   try {
-    await pool.query('DELETE FROM visualizations WHERE id = $1', [id]);
-    return { message: `Visualization with ID ${id} deleted.` };
+    const result = await pool.query('DELETE FROM visualizations WHERE id = $1', [id]);
+    if (result.rowCount > 0) {
+      logger.info(`✅ Visualization deleted successfully with ID: ${id}`);
+      return { message: `Visualization with ID ${id} deleted.` };
+    } else {
+      logger.info(`ℹ️ No visualization found to delete with ID: ${id}`);
+      return { message: `No visualization found with ID ${id}.` };
+    }
   } catch (error) {
+    logger.error(`❌ Failed to delete visualization with ID ${id}: ${error.message}`);
     handleError(error, 'delete visualization', id);
   }
 };

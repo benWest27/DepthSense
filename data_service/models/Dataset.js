@@ -36,7 +36,7 @@ const insertDataset = async (name, value) => {
       'INSERT INTO datasets (name, value) VALUES ($1, $2) RETURNING *',
       [name, value]
     );
-    logger.info('✅ Dataset inserted successfully. result.rows =>', result.rows);
+    logger.info('✅ Dataset inserted successfully. Number of rows inserted:', result.rowCount);
     return result.rows[0];
   } catch (error) {
     logger.error('❌ Error inserting dataset:', error);
@@ -48,7 +48,7 @@ const insertDataset = async (name, value) => {
 const getAllDatasets = async () => {
   try {
     const result = await pool.query('SELECT * FROM datasets ORDER BY created_at DESC');
-    logger.info('✅ Fetched all datasets successfully. result.rows =>', result.rows);
+    logger.info('✅ Fetched all datasets successfully. Number of rows inserted:', result.rowCount);
     return result.rows;
   } catch (error) {
     logger.error('❌ Error fetching datasets:', error);
