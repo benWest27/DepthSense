@@ -2,9 +2,14 @@
 services:
 
   nginx:
+    image: nginx:latest
+    container_name: nginx
     build: ./nginx
     ports:
       - "80:80"
+    volumes:
+      - ./nginx:/etc/nginx
+      - ./nginx/public:/usr/share/nginx/html
     depends_on:
       - auth_service
       - editor_service
@@ -12,23 +17,23 @@ services:
       - data_service
       - postgres
     networks:
-      - app-network
+      - paraviz_network
 
 
   postgres:
       image: postgres:14
       restart: always
       environment:
-        POSTGRES_DB: depthsense
+        POSTGRES_DB: paraviz
         POSTGRES_USER: admin
         POSTGRES_PASSWORD: password
       ports:
         - "5432:5432"
       volumes:
         - postgres_data:/var/lib/postgresql/data
-        - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+        - ./database:/docker-entrypoint-initdb.d/init.sql
       networks:
-        - app-network
+        - paraviz_network
       healthcheck:
         test: ["CMD", "pg_isready", "-U", "admin"]
         interval: 10s
@@ -41,17 +46,17 @@ services:
     ports:
       - "5000:5000"
     environment:
-      - JWT_SECRET=${JWT_SECRET}
+      - JWT_SECRET=supersecret
       - DATA_SERVICE_URL=http://data_service:5003
       - DB_HOST=postgres
       - DB_PORT=5432
       - DB_USER=admin
       - DB_PASSWORD=password
-      - DB_NAME=depthsense
+      - DB_NAME=paraviz
     depends_on:
       - data_service
     networks:
-      - app-network
+      - paraviz_network
 
   editor_service:
     build: ./editor_service
@@ -63,7 +68,7 @@ services:
     depends_on:
       - data_service
     networks:
-      - app-network
+      - paraviz_network
 
   viewer_service:
     build: ./viewer_service
@@ -75,7 +80,7 @@ services:
     depends_on:
       - data_service
     networks:
-      - app-network
+      - paraviz_network
 
   data_service:
     build: ./data_service
@@ -87,11 +92,12 @@ services:
       - DB_PORT=5432
       - DB_USER=admin
       - DB_PASSWORD=password
-      - DB_NAME=depthsense
+      - DB_NAME=paraviz
     depends_on:
       - postgres
     networks:
-      - app-network
+      - paraviz_network
+      
 
 
 volumes:
@@ -99,5 +105,5 @@ volumes:
     driver: local
 
 networks:
-  app-network:
+  paraviz_network:
     driver: bridge

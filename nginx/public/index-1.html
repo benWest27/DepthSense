@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Welcome to Paraviz</title>
+  <!-- Link to your external CSS file -->
+  <link rel="stylesheet" href="css/index.css" />
+</head>
+<body>
+  <h1>Welcome to Paraviz</h1>
+
+  <!-- Large label text -->
+  <div class="paraviz-label">
+    Paraviz
+  </div>
+
+<!-- Gray form container -->
+<div class="form-container">
+  <!-- Heading above inputs -->
+  <h2 id="formTitle" class="form-title">Login</h2>
+
+  <!-- Wrap everything in a form -->
+  <form id="loginForm" style="visibility: visible;">    
+    <!-- Add the missing authForm element -->
+    <div id="authForm">
+      <!-- First Input Row: Username -->
+      <!-- Transform "Name" into a proper label -->
+      <label class="input-label" for="username">Name</label>
+      <div class="input-row">
+        <!-- Text input for username -->
+        <input 
+          id="loginUsername" 
+          type="text" 
+          name="username" 
+          placeholder="Enter your username" 
+          style="border: none; outline: none; background: transparent;" 
+        />
+        <!-- Icon -->
+        <div data-svg-wrapper>
+          <!-- SVG icon code -->
+          <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+            <g clip-path="url(#clip0_11_14)">
+              <path d="M20.4 29L24 25.4L27.6 29L29 27.6L25.4 24L29 20.4L27.6 19L24 22.6L20.4 19L19 20.4L22.6 24L19 27.6L20.4 29ZM24 34C22.6167 34 21.3167 33.7375 20.1 33.2125C18.8833 32.6875 17.825 31.975 16.925 31.075C16.025 30.175 15.3125 29.1167 14.7875 27.9C14.2625 26.6833 14 25.3833 14 24C14 22.6167 14.2625 21.3167 14.7875 20.1C15.3125 18.8833 16.025 17.825 16.925 16.925C17.825 16.025 18.8833 15.3125 20.1 14.7875C21.3167 14.2625 22.6167 14 24 14C25.3833 14 26.6833 14.2625 27.9 14.7875C29.1167 15.3125 30.175 16.025 31.075 16.925C31.975 17.825 32.6875 18.8833 33.2125 20.1C33.7375 21.3167 34 22.6167 34 24C34 25.3833 33.7375 26.6833 33.2125 27.9C32.6875 29.1167 31.975 30.175 31.075 31.075C30.175 31.975 29.1167 32.6875 27.9 33.2125C26.6833 33.7375 25.3833 34 24 34ZM24 32C26.2333 32 28.125 31.225 29.675 29.675C31.225 28.125 32 26.2333 32 24C32 21.7667 31.225 19.875 29.675 18.325C28.125 16.775 26.2333 16 24 16C21.7667 16 19.875 16.775 18.325 18.325C16.775 19.875 16 21.7667 16 24C16 26.2333 16.775 28.125 18.325 29.675C19.875 31.225 21.7667 32 24 32Z"
+                    fill="#49454F"/>
+            </g>
+            <defs>
+              <clipPath id="clip0_11_14">
+                <rect x="4" y="4" width="40" height="40" rx="20" fill="white"/>
+              </clipPath>
+            </defs>
+          </svg>
+        </div>
+          <!-- Icon -->
+            <div data-svg-wrapper>
+              <!-- SVG icon code -->
+              <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                <g clip-path="url(#clip0_11_14)">
+                  <path d="M20.4 29L24 25.4L27.6 29L29 27.6L25.4 24L29 20.4L27.6 19L24 22.6L20.4 19L19 20.4L22.6 24L19 27.6L20.4 29ZM24 34C22.6167 34 21.3167 33.7375 20.1 33.2125C18.8833 32.6875 17.825 31.975 16.925 31.075C16.025 30.175 15.3125 29.1167 14.7875 27.9C14.2625 26.6833 14 25.3833 14 24C14 22.6167 14.2625 21.3167 14.7875 20.1C15.3125 18.8833 16.025 17.825 16.925 16.925C17.825 16.025 18.8833 15.3125 20.1 14.7875C21.3167 14.2625 22.6167 14 24 14C25.3833 14 26.6833 14.2625 27.9 14.7875C29.1167 15.3125 30.175 16.025 31.075 16.925C31.975 17.825 32.6875 18.8833 33.2125 20.1C33.7375 21.3167 34 22.6167 34 24C34 25.3833 33.7375 26.6833 33.2125 27.9C32.6875 29.1167 31.975 30.175 31.075 31.075C30.175 31.975 29.1167 32.6875 27.9 33.2125C26.6833 33.7375 25.3833 34 24 34ZM24 32C26.2333 32 28.125 31.225 29.675 29.675C31.225 28.125 32 26.2333 32 24C32 21.7667 31.225 19.875 29.675 18.325C28.125 16.775 26.2333 16 24 16C21.7667 16 19.875 16.775 18.325 18.325C16.775 19.875 16 21.7667 16 24C16 26.2333 16.775 28.125 18.325 29.675C19.875 31.225 21.7667 32 24 32Z"
+                        fill="#49454F"/>
+                </g>
+                <defs>
+                  <clipPath id="clip0_11_14">
+                    <rect x="4" y="4" width="40" height="40" rx="20" fill="white"/>
+                  </clipPath>
+                </defs>
+              </svg>
+            </div>
+        </div>
+
+      <!-- Second Input Row: Password -->
+      <label class="input-label" for="password">Password</label>
+      <div class="input-row">
+        <!-- Password input -->
+        <input 
+          id="loginPassword" 
+          type="password" 
+          name="password" 
+          placeholder="Enter your password" 
+          style="border: none; outline: none; background: transparent;" 
+        />
+        <!-- Icon -->
+        <div data-svg-wrapper>
+          <!-- SVG icon code for password -->
+          <svg width="48" height="49" viewBox="0 0 48 49" fill="none">
+            <g clip-path="url(#clip0_11_28)">
+              <path d="M20.4 29.5L24 25.9L27.6 29.5L29 28.1L25.4 24.5L29 20.9L27.6 19.5L24 23.1L20.4 19.5L19 20.9L22.6 24.5L19 28.1L20.4 29.5ZM24 34.5C22.6167 34.5 21.3167 34.2375 20.1 33.7125C18.8833 33.1875 17.825 32.475 16.925 31.575C16.025 30.675 15.3125 29.6167 14.7875 28.4C14.2625 27.1833 14 25.8833 14 24.5C14 23.1167 14.2625 21.8167 14.7875 20.6C15.3125 19.3833 16.025 18.325 16.925 17.425C17.825 16.525 18.8833 15.8125 20.1 15.2875C21.3167 14.7625 22.6167 14.5 24 14.5C25.3833 14.5 26.6833 14.7625 27.9 15.2875C29.1167 15.8125 30.175 16.525 31.075 17.425C31.975 18.325 32.6875 19.3833 33.2125 20.6C33.7375 21.8167 34 23.1167 34 24.5C34 25.8833 33.7375 27.1833 33.2125 28.4C32.6875 29.6167 31.975 30.675 31.075 31.575C30.175 32.475 29.1167 33.1875 27.9 33.7125C26.6833 34.2375 25.3833 34.5 24 34.5ZM24 32.5C26.2333 32.5 28.125 31.725 29.675 30.175C31.225 28.625 32 26.7333 32 24.5C32 22.2667 31.225 20.375 29.675 18.825C28.125 17.275 26.2333 16.5 24 16.5C21.7667 16.5 19.875 17.275 18.325 18.825C16.775 20.375 16 22.2667 16 24.5C16 26.7333 16.775 28.625 18.325 30.175C19.875 31.725 21.7667 32.5 24 32.5Z"
+                    fill="#49454F"/>
+            </g>
+            <defs>
+              <clipPath id="clip0_11_28">
+                <rect x="4" y="4.5" width="40" height="40" rx="20" fill="white"/>
+              </clipPath>
+            </defs>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="button-group">
+        <!-- Register Button -->
+        <button 
+          class="action-button btn-register" 
+          type="button" 
+          id="registerBtn">
+          Register
+        </button>
+      
+        <!-- Login Button -->
+        <button 
+          class="action-button btn-login" 
+          type="button" 
+          id="loginBtn">
+          Login
+        </button>
+      </div>
+    </div>
+  </form>
+
+  <form id="registrationForm" style="visibility: hidden;">
+    <label class="input-label" for="username">Username</label>
+    <div class="input-row">
+      <input 
+        id="registerUsername" 
+        type="text" 
+        name="username" 
+        placeholder="Enter your username" 
+        required 
+        style="border: none; outline: none; background: transparent;" 
+      />
+    </div>
+    <label class="input-label" for="email">Email</label>
+    <div class="input-row">
+      <input 
+        id="email" 
+        type="email" 
+        name="email" 
+        placeholder="Enter your email" 
+        required 
+        style="border: none; outline: none; background: transparent;" 
+      />
+    </div>
+    <label class="input-label" for="password">Password</label>
+    <div class="input-row">
+      <input 
+        id="registerPassword" 
+        type="password" 
+        name="password" 
+        placeholder="Enter your password" 
+        required 
+        style="border: none; outline: none; background: transparent;" 
+      />
+    </div>
+    <div class="button-group">
+      <button 
+        class="action-button btn-login" 
+        type="button" 
+        onclick="switchToLoginForm()">
+        Back to Login
+      </button>
+      <button 
+        class="action-button btn-register" 
+        type="submit" 
+        id="registerSubmitBtn">
+        Register
+      </button>
+    </div>
+  </form>
+  
+</div>
+</body>
+
+<script src="js/index.js"></script>
+</html>

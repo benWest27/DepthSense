@@ -7,7 +7,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'supersecretkey';
 // Register a new user
 const register = async (req, res) => {
   const { username, email, password } = req.body;
-
+  logger.info('🔍 Registering user:', { username, email });
   try {
     // Check if user already exists
     const existingUser = await findUserByUsernameOrEmail(username);

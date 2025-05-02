@@ -2,32 +2,33 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const { Pool } = require('pg');
+const { pool } = require('./models/Database'); // Adjust if your pool is defined in another module.
 
 const shouldAuthenticate = process.env.NODE_ENV !== 'development';
 
-// Database configuration
-const pool = new Pool({
-  host: process.env.DB_HOST || 'localhost',
-  port: process.env.DB_PORT || 5432,
-  database: process.env.DB_NAME || 'depthsense',
-  user: process.env.DB_USER || 'admin',
-  password: process.env.DB_PASSWORD || 'password'
-});
 
-// Test database connection
-pool.query('SELECT NOW()', (err) => {
-  if (err) {
-    console.error('Database connection error:', err);
-  } else {
-    console.log('Database connected successfully');
-  }
-});
 
 // Create Express app
 const app = express();
 
 // Middleware
 app.use(cors());
+
+// NEW: Update Content Security Policy header to allow scripts, fonts, inline styles, connections, and images (including data: URLs)
+app.use((req, res, next) => {
+  res.setHeader(
+    "Content-Security-Policy",
+    "default-src 'self'; " +
+    "script-src 'self' https://cdn.jsdelivr.net; " +
+    "script-src-elem 'self' https://cdn.jsdelivr.net; " +
+    "connect-src 'self' http://localhost:5003; " +
+    "style-src 'self' 'unsafe-inline'; " +
+    "font-src 'self' data:; " +
+    "img-src 'self' data:;"
+  );
+  next();
+});
+
 app.use(express.json());
 
 // Health check endpoint (no auth required)
@@ -83,151 +84,6 @@ const verifyRole = (allowedRoles) => (req, res, next) => {
 
 // 2) Create a router for all Editor APIs under /api/editor
 const router = express.Router();
-
-// ---------------------- LAYER MANAGEMENT ----------------------
-
-// List all layers
-router.get('/layers', async (req, res) => {
-  try {
-    const result = await pool.query(
-      `SELECT v.id, v.name, v.config, d.name as dataset_name
-         FROM visualizations v
-         LEFT JOIN datasets d ON v.dataset_id = d.id
-        WHERE v.user_id = $1
-        ORDER BY v.created_at DESC`,
-      [req.user.id]
-    );
-    res.json(result.rows);
-  } catch (error) {
-    console.error('Layer list error:', error);
-    res.status(500).json({ error: 'Failed to retrieve layers' });
-  }
-});
-
-// Create new layer
-router.post('/layers', async (req, res) => {
-  try {
-    const { name, type, datasetId } = req.body; // unify naming
-    const result = await pool.query(
-      `INSERT INTO visualizations (user_id, dataset_id, name, config)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id, name, config`,
-      [req.user.id, datasetId || null, name, JSON.stringify({ type, visible: true })]
-    );
-    res.status(201).json(result.rows[0]);
-  } catch (error) {
-    console.error('Layer creation error:', error);
-    res.status(500).json({ error: 'Failed to create layer' });
-  }
-});
-
-// Get layer details
-router.get('/layers/:id', async (req, res) => {
-  try {
-    const result = await pool.query(
-      `SELECT v.id, v.name, v.config, d.name as dataset_name,
-              d.column_names, d.row_count, v.dataset_id
-         FROM visualizations v
-         LEFT JOIN datasets d ON v.dataset_id = d.id
-        WHERE v.id = $1 AND v.user_id = $2`,
-      [req.params.id, req.user.id]
-    );
-    
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Layer not found' });
-    }
-    
-    // If there's a dataset, fetch its data
-    if (result.rows[0].dataset_id) {
-      const dataResult = await pool.query(
-        `SELECT data FROM csv_data
-          WHERE dataset_id = $1
-          ORDER BY row_number`,
-        [result.rows[0].dataset_id]
-      );
-      result.rows[0].data = dataResult.rows.map(row => row.data);
-    }
-    
-    res.json(result.rows[0]);
-  } catch (error) {
-    console.error('Layer retrieval error:', error);
-    res.status(500).json({ error: 'Failed to retrieve layer' });
-  }
-});
-
-// Update layer visibility
-router.patch('/layers/:id/visibility', async (req, res) => {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    
-    const { visible } = req.body;
-    if (typeof visible !== 'boolean') {
-      return res.status(400).json({ error: 'Visibility must be a boolean' });
-    }
-    
-    const result = await client.query(
-      `UPDATE visualizations
-         SET config = jsonb_set(
-           COALESCE(config, '{}'::jsonb), 
-           '{visible}', 
-           $1::jsonb
-         )
-        WHERE id = $2 AND user_id = $3
-        RETURNING id, name, config`,
-      [JSON.stringify(visible), req.params.id, req.user.id]
-    );
-    
-    if (result.rows.length === 0) {
-      await client.query('ROLLBACK');
-      return res.status(404).json({ error: 'Layer not found' });
-    }
-    
-    await client.query('COMMIT');
-    res.json(result.rows[0]);
-  } catch (error) {
-    await client.query('ROLLBACK');
-    console.error('Visibility update error:', error);
-    res.status(500).json({ error: 'Failed to update layer visibility' });
-  } finally {
-    client.release();
-  }
-});
-
-// Delete layer
-router.delete('/layers/:id', async (req, res) => {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    
-    // Check ownership
-    const result = await client.query(
-      `SELECT id 
-         FROM visualizations
-        WHERE id = $1 AND user_id = $2`,
-      [req.params.id, req.user.id]
-    );
-    
-    if (result.rows.length === 0) {
-      await client.query('ROLLBACK');
-      return res.status(404).json({ error: 'Layer not found' });
-    }
-    
-    await client.query(
-      'DELETE FROM visualizations WHERE id = $1',
-      [req.params.id]
-    );
-    
-    await client.query('COMMIT');
-    res.json({ status: 'success' });
-  } catch (error) {
-    await client.query('ROLLBACK');
-    console.error('Layer deletion error:', error);
-    res.status(500).json({ error: 'Failed to delete layer' });
-  } finally {
-    client.release();
-  }
-});
 
 // ---------------------- CSV DATA MANAGEMENT ----------------------
 router.post('/csv', async (req, res) => {

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Visualization Viewer</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <h1>Data Visualization Viewer</h1>
+    
+    <section id="visualization-list">
+        <h2>Available Visualizations</h2>
+        <ul id="visualizationGallery"></ul>
+    </section>
+    
+    <section id="visualization-container">
+        <h2>Parallax Visualization</h2>
+        <canvas id="parallaxCanvas"></canvas>
+        <div>
+            <button id="lockView">Lock View</button>
+            <button id="freeMove">Free Move</button>
+        </div>
+    </section>
+    
+    <script>
+        let isLocked = false;
+        const canvas = document.getElementById("parallaxCanvas");
+        const ctx = canvas.getContext("2d");
+        canvas.width = window.innerWidth * 0.8;
+        canvas.height = window.innerHeight * 0.6;
+
+        async function loadVisualizations() {
+            const response = await fetch('/api/visualizations');
+            const visualizations = await response.json();
+            const gallery = document.getElementById('visualizationGallery');
+            gallery.innerHTML = '';
+            
+            visualizations.forEach(visualization => {
+                const listItem = document.createElement('li');
+                listItem.textContent = visualization.name;
+                listItem.onclick = () => loadVisualization(visualization.id);
+                gallery.appendChild(listItem);
+            });
+        }
+
+        async function loadVisualization(id) {
+            const response = await fetch(`/api/visualizations/${id}`);
+            const visualization = await response.json();
+            drawParallaxVisualization(visualization);
+        }
+
+        function drawParallaxVisualization(data) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            data.config.layers.forEach((layer, index) => {
+                ctx.fillStyle = `rgba(0, 0, 255, ${1 - index * 0.2})`;
+                ctx.fillRect(100 + index * 30, 100 + index * 30, 200, 100);
+            });
+        }
+
+        function handleMouseMove(event) {
+            if (!isLocked) {
+                const mouseX = event.clientX;
+                const mouseY = event.clientY;
+                canvas.style.transform = `translate(${mouseX * 0.02}px, ${mouseY * 0.02}px)`;
+            }
+        }
+
+        document.getElementById("lockView").addEventListener("click", () => {
+            isLocked = true;
+        });
+
+        document.getElementById("freeMove").addEventListener("click", () => {
+            isLocked = false;
+        });
+
+        canvas.addEventListener("mousemove", handleMouseMove);
+        window.onload = loadVisualizations;
+    </script>
+</body>
+</html>

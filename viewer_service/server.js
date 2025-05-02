@@ -2,10 +2,18 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const { Pool } = require('pg');
+const jwt = require('jsonwebtoken');
+const fs = require('fs'); // Add if not already present
+const fetch = global.fetch || require('node-fetch'); // Use built-in fetch (Node 18+) or fallback
+
+// NEW: Use logger instead of console.
+const logger = require('./utils/logger');
+
+const SECRET_KEY = process.env.SECRET_KEY || 'your-secret-key';
 
 // Database configuration
 const pool = new Pool({
-  host: process.env.DB_HOST || 'localhost',
+  host: process.env.DB_HOST || '127.0.0.1', // Changed default from 'localhost' to '127.0.0.1'
   port: process.env.DB_PORT || 5432,
   database: process.env.DB_NAME || 'depthsense',
   user: process.env.DB_USER || 'admin',
@@ -15,9 +23,9 @@ const pool = new Pool({
 // Test database connection
 pool.query('SELECT NOW()', (err, res) => {
   if (err) {
-    console.error('Database connection error:', err);
+    logger.error('Database connection error:', err);
   } else {
-    console.log('Database connected successfully');
+    logger.info('Database connected successfully');
   }
 });
 
@@ -27,6 +35,32 @@ const app = express();
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Serve static files before authentication middleware
+// Remove or comment out the old static mount:
+// app.use(express.static(path.join(__dirname, 'public')));
+
+// New: Serve static files under "/viewer"
+app.use('/viewer', express.static(path.join(__dirname, 'public')));
+
+// Apply authentication only for API routes
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/')) { // only protect API endpoints
+    const token = req.header("Authorization")?.split(" ")[1];
+    try {
+      const decoded = jwt.verify(token, SECRET_KEY);
+      if (!["admin", "creator", "viewer"].includes(decoded.role)) {
+        return res.status(403).json({ error: "Access denied: insufficient privileges" });
+      }
+      req.user = decoded;
+      next();
+    } catch (error) {
+      return res.status(401).json({ error: "Invalid token" });
+    }
+  } else {
+    next();
+  }
+});
 
 // Health check endpoint
 app.get('/health', async (req, res) => {
@@ -42,7 +76,7 @@ app.get('/health', async (req, res) => {
       version: process.env.npm_package_version || '1.0.0'
     });
   } catch (error) {
-    console.error('Health check failed:', error);
+    logger.error('Health check failed:', error);
     res.status(503).json({
       status: 'ERROR',
       service: 'visualization_service_editor',
@@ -69,14 +103,14 @@ const verifyRole = (allowedRoles) => (req, res, next) => {
     req.user = user;
     next();
   } catch (error) {
-    console.error('Role verification error:', error);
+    logger.error('Role verification error:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 };
 
 // Editor routes
 // Apply role verification to all routes
-app.use(verifyRole(['admin', 'creator']));
+//app.use(verifyRole(['admin', 'creator', 'viewer']));
 
 // Layer Management Routes
 const router = express.Router();
@@ -94,7 +128,7 @@ router.get('/api/layers', async (req, res) => {
     );
     res.json(result.rows);
   } catch (error) {
-    console.error('Layer list error:', error);
+    logger.error('Layer list error:', error);
     res.status(500).json({ error: 'Failed to retrieve layers' });
   }
 });
@@ -111,7 +145,7 @@ router.post('/api/layers', async (req, res) => {
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {
-    console.error('Layer creation error:', error);
+    logger.error('Layer creation error:', error);
     res.status(500).json({ error: 'Failed to create layer' });
   }
 });
@@ -144,7 +178,7 @@ router.get('/api/layers/:id', async (req, res) => {
     
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Layer retrieval error:', error);
+    logger.error('Layer retrieval error:', error);
     res.status(500).json({ error: 'Failed to retrieve layer' });
   }
 });
@@ -177,7 +211,7 @@ router.patch('/api/layers/:id/visibility', async (req, res) => {
     res.json(result.rows[0]);
   } catch (error) {
     await client.query('ROLLBACK');
-    console.error('Layer visibility update error:', error);
+    logger.error('Layer visibility update error:', error);
     res.status(500).json({ error: 'Failed to update layer visibility' });
   } finally {
     client.release();
@@ -210,7 +244,7 @@ router.delete('/api/layers/:id', async (req, res) => {
     res.json({ status: 'success' });
   } catch (error) {
     await client.query('ROLLBACK');
-    console.error('Layer deletion error:', error);
+    logger.error('Layer deletion error:', error);
     res.status(500).json({ error: 'Failed to delete layer' });
   } finally {
     client.release();
@@ -250,7 +284,7 @@ app.post('/api/csv', async (req, res) => {
     res.status(201).json({ id: datasetId, filename, columns, rowCount: rows.length });
   } catch (error) {
     await client.query('ROLLBACK');
-    console.error('CSV upload error:', error);
+    logger.error('CSV upload error:', error);
     res.status(500).json({ error: 'Failed to upload CSV data' });
   } finally {
     client.release();
@@ -268,7 +302,7 @@ app.get('/api/csv', async (req, res) => {
     );
     res.json(result.rows);
   } catch (error) {
-    console.error('CSV list error:', error);
+    logger.error('CSV list error:', error);
     res.status(500).json({ error: 'Failed to retrieve CSV files' });
   }
 });
@@ -301,7 +335,7 @@ app.get('/api/csv/:id', async (req, res) => {
       rows: dataResult.rows.map(row => row.data)
     });
   } catch (error) {
-    console.error('CSV retrieval error:', error);
+    logger.error('CSV retrieval error:', error);
     res.status(500).json({ error: 'Failed to retrieve CSV data' });
   }
 });
@@ -333,7 +367,7 @@ app.delete('/api/csv/:id', async (req, res) => {
     res.json({ status: 'success' });
   } catch (error) {
     await client.query('ROLLBACK');
-    console.error('CSV deletion error:', error);
+    logger.error('CSV deletion error:', error);
     res.status(500).json({ error: 'Failed to delete CSV file' });
   } finally {
     client.release();
@@ -360,7 +394,7 @@ app.post('/api/layers', async (req, res) => {
     res.status(201).json(result.rows[0]);
   } catch (error) {
     await client.query('ROLLBACK');
-    console.error('Layer creation error:', error);
+    logger.error('Layer creation error:', error);
     res.status(500).json({ error: 'Failed to create layer' });
   } finally {
     client.release();
@@ -379,7 +413,7 @@ app.get('/api/layers', async (req, res) => {
     );
     res.json(result.rows);
   } catch (error) {
-    console.error('Layer list error:', error);
+    logger.error('Layer list error:', error);
     res.status(500).json({ error: 'Failed to retrieve layers' });
   }
 });
@@ -412,7 +446,7 @@ app.get('/api/layers/:id', async (req, res) => {
     
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Layer retrieval error:', error);
+    logger.error('Layer retrieval error:', error);
     res.status(500).json({ error: 'Failed to retrieve layer' });
   }
 });
@@ -444,7 +478,7 @@ app.delete('/api/layers/:id', async (req, res) => {
     res.json({ status: 'success' });
   } catch (error) {
     await client.query('ROLLBACK');
-    console.error('Layer deletion error:', error);
+    logger.error('Layer deletion error:', error);
     res.status(500).json({ error: 'Failed to delete layer' });
   } finally {
     client.release();
@@ -479,7 +513,7 @@ app.patch('/api/layers/:id/visibility', async (req, res) => {
     res.json(result.rows[0]);
   } catch (error) {
     await client.query('ROLLBACK');
-    console.error('Visibility update error:', error);
+    logger.error('Visibility update error:', error);
     res.status(500).json({ error: 'Failed to update layer visibility' });
   } finally {
     client.release();
@@ -503,14 +537,61 @@ app.get('/dashboard', (req, res) => {
     };
     res.status(200).json(dashboardData);
   } catch (error) {
-    console.error('Editor dashboard error:', error);
+    logger.error('Editor dashboard error:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
+});
+
+// New route to handle viewer requests with a visualization ID
+app.get('/viewer', async (req, res) => {
+  const vizId = req.query.id;
+  logger.info("[Viewer] Received request for visualization ID:", vizId);
+  let vizData = null;
+  if (vizId) {
+    try {
+      const vizResp = await fetch(`http://data_service/api/visualization/${vizId}`, {
+        headers: { 'Authorization': req.headers["authorization"] || '' }
+      });
+      if (vizResp.ok) {
+        vizData = await vizResp.json();
+        logger.info("[Viewer] Successfully fetched visualization data for ID:", vizId);
+      } else {
+        logger.error("[Viewer] Failed to fetch visualization data. Status:", vizResp.status, vizResp.statusText);
+      }
+    } catch (error) {
+      logger.error("[Viewer] Error fetching visualization:", error);
+    }
+  } else {
+    logger.warn("[Viewer] No visualization ID provided in query parameters.");
+  }
+  const indexPath = path.join(__dirname, 'public', 'index.html');
+  fs.readFile(indexPath, 'utf8', (err, html) => {
+    if (err) {
+      logger.error("[Viewer] Error reading index.html:", err);
+      return res.status(500).send("Error loading page");
+    }
+    logger.info("[Viewer] Successfully read index.html.");
+    if (vizData) {
+      const injection = `<script>window.initialVisualization = ${JSON.stringify(vizData)};</script>`;
+      html = html.replace('</head>', injection + '</head>');
+      logger.info("[Viewer] Injected visualization data into index.html.");
+    } else {
+      logger.warn("[Viewer] No visualization data to inject.");
+    }
+    res.send(html);
+  });
+});
+
+// Serve public files for the Viewer Service
+// Fallback: send index.html for all unmatched routes (for SPA routing)
+app.get(['/viewer', '/viewer/*'], (req, res) => {
+  logger.info("[Viewer] Fallback route triggered, serving index.html.");
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // Start editor service
 const port = 5002;
 
 app.listen(port, () => {
-  console.log(`Editor service listening at http://localhost:${port}`);
+  logger.info(`[Viewer] Service listening at http://localhost:${port}`);
 });

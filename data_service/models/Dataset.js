@@ -5,7 +5,7 @@ const logger = require('../utils/logger');
 const pool = new Pool({
   host: process.env.DB_HOST || 'localhost',
   port: process.env.DB_PORT || 5432,
-  database: process.env.DB_NAME || 'depthsense',
+  database: process.env.DB_NAME || 'paraviz', 
   user: process.env.DB_USER || 'admin',
   password: process.env.DB_PASSWORD || 'password',
 });
@@ -31,10 +31,12 @@ const createTable = async () => {
 // Insert Data
 const insertDataset = async (name, value) => {
   try {
+    logger.info('Inserting dataset with name:', name, 'and value:', value);
     const result = await pool.query(
       'INSERT INTO datasets (name, value) VALUES ($1, $2) RETURNING *',
       [name, value]
     );
+    logger.info('✅ Dataset inserted successfully. Number of rows inserted:', result.rowCount);
     return result.rows[0];
   } catch (error) {
     logger.error('❌ Error inserting dataset:', error);
@@ -46,6 +48,7 @@ const insertDataset = async (name, value) => {
 const getAllDatasets = async () => {
   try {
     const result = await pool.query('SELECT * FROM datasets ORDER BY created_at DESC');
+    logger.info('✅ Fetched all datasets successfully. Number of rows inserted:', result.rowCount);
     return result.rows;
   } catch (error) {
     logger.error('❌ Error fetching datasets:', error);
@@ -55,11 +58,15 @@ const getAllDatasets = async () => {
 
 // Get Dataset by ID
 const getDatasetById = async (id) => {
+  const intId = parseInt(id, 10);
+  if (isNaN(intId)) {
+    throw new Error("Invalid dataset id");
+  }
   try {
-    const result = await pool.query('SELECT * FROM datasets WHERE id = $1', [id]);
+    const result = await pool.query('SELECT * FROM datasets WHERE id = $1', [intId]);
     return result.rows[0];
   } catch (error) {
-    logger.error(`❌ Error fetching dataset with ID ${id}:`, error);
+    logger.error(`❌ Error fetching dataset with ID ${intId}:`, error);
     throw error;
   }
 };

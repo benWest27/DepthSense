@@ -7,7 +7,7 @@ const { Pool } = require("pg");
 const logger = require("./utils/logger"); // Import Winston Logger
 const morgan = require("morgan");
 
-// Import Routes & Middleware
+// Import Routes
 const authRoutes = require("./routes/authroutes");
 
 // Initialize Express App
@@ -20,7 +20,7 @@ const pool = new Pool({
   port: config.get("db.port"),
   database: config.get("db.database"),
   user: config.get("db.user"),
-  password: config.get("db.password")
+  password: config.get("db.password"),
 });
 
 // Middleware
@@ -31,6 +31,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 // Use Morgan to log HTTP requests in a combined format
 app.use(morgan("combined", { stream: logger.stream }));
 
+logger.info("🔗 Auth service starting...");
 // Health Check Route
 app.get("/api/health", async (req, res) => {
   try {

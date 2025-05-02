@@ -1,4 +1,4 @@
-
+-- init.sql
 
 -- Create tables
 CREATE TABLE IF NOT EXISTS users (
@@ -36,18 +36,17 @@ CREATE TABLE IF NOT EXISTS visualizations (
     title VARCHAR(255) NOT NULL,
     description TEXT,
     data JSONB NOT NULL,
-    created_by INT REFERENCES users(id) ON DELETE SET NULL,  -- Correct foreign key
-    dataset_id INT REFERENCES datasets(id) ON DELETE CASCADE, -- Added dataset_id if needed
+    created_by INT REFERENCES users(id) ON DELETE SET NULL,
+    dataset_id INT REFERENCES datasets(id) ON DELETE CASCADE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Create indexes
 CREATE INDEX IF NOT EXISTS idx_datasets_user_id ON datasets(user_id);
-CREATE INDEX IF NOT EXISTS idx_visualizations_created_by ON visualizations(created_by); -- Fixed user_id -> created_by
-CREATE INDEX IF NOT EXISTS idx_visualizations_dataset_id ON visualizations(dataset_id); -- Ensure dataset_id exists
+CREATE INDEX IF NOT EXISTS idx_visualizations_created_by ON visualizations(created_by);
+CREATE INDEX IF NOT EXISTS idx_visualizations_dataset_id ON visualizations(dataset_id);
 
-
--- Add any initial data if needed
--- INSERT INTO users (username, email, password_hash) VALUES ('admin', 'admin@example.com', 'hashed_password_here');
-
--- Add any additional setup queries here
+-- Optionally, insert initial data:
+INSERT INTO users (username, email, password_hash)
+VALUES ('admin', 'admin@example.com', 'password')
+ON CONFLICT (username) DO NOTHING;

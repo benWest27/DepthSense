@@ -7,7 +7,7 @@
     "db": {
       "host": "postgres",
       "port": 5432,
-      "database": "depthsense",
+      "database": "paraviz",
       "user": "admin",
       "password": "password"
     },

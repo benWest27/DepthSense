@@ -1,120 +1,101 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>DepthSense Editor</title>
-  <!-- Link to external CSS -->
-  <link rel="stylesheet" href="css/styles.css">
-  <!-- Defer script so it runs after DOM is parsed -->
-  <script src="js/app.js" defer></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ParaViz Editor</title>
+    <link rel="stylesheet" href="css/index.css">
 </head>
 <body>
-
-  <!-- Top Navigation Bar -->
-  <div id="top-bar">
-    <button id="logout">Logout</button>
-    <button id="save">Save</button>
-    <button id="open">Open</button>
-    <button id="upload">Upload</button>
-    <button id="viewer">Viewer</button>
-  </div>
-
-  <!-- Main Dashboard Container -->
-  <div id="dashboard-container">
-
-    <!-- Left Sidebar -->
-    <aside id="left-sidebar">
-      <h3>Data Source</h3>
-      <select id="data-source-select">
-        <option value="">Select Data Source</option>
-        <!-- For demonstration, one CSV data source is defined -->
-        <option value="csv">Tianas Bayou Adventure CSV</option>
-      </select>
-
-      <h3>Fields</h3>
-      <div id="fields-container">
-        <!-- Draggable fields will be dynamically added here -->
-      </div>
-    </aside>
-
-    <!-- Main Content -->
-    <main id="main-content">
-
-      <!-- Layer Panel -->
-      <div id="layer-panel">
-        <div class="layer-tab">Layer 1</div>
-        <div class="layer-tab">Layer 2</div>
-        <div class="layer-tab">Layer 3</div>
-        <button id="add-layer">Add Layer</button>
-      </div>
-
-      <!-- Axis Controls (Drop Zones) -->
-      <div id="axis-controls">
-        <div class="axis-group">
-          <label>Column</label>
-          <div id="column-drop-zone" class="drop-zone">
-            <!-- Dropped fields for 'Column' go here -->
-          </div>
+    <div class="background-container">
+      <header class="editor-header">
+        <div class="header-buttons">
+          <label id="visualization-name" >unkown</label>
+            <button id="upload" class="button">Upload</button>
+            <button id="logout" class="button">Logout</button>
+            <button id="save" class="button">Save</button>
+            <button id="load" class="button">Load</button>
+            <button id="view" class="button">view</button>
         </div>
-        <div class="axis-group">
-          <label>Row</label>
-          <div id="row-drop-zone" class="drop-zone">
-            <!-- Dropped fields for 'Row' go here -->
-          </div>
+      </header>
+    </div>
+    <!-- layer toolbar -->
+    <div class="layer-container">
+        <div id="layer-panel">
+        <div class="layer-tab" data-layer-index="0">Layer 1</div>
+        <button id="add-layer" class="editorButton">Add Layer</button>
         </div>
-      </div>
+        <div id="axis-controls">
+            <div class="axis-group">
+                <label>Column</label>
+                <div id="column-drop-zone" class="drop-zone">
+                </div>
+            </div>
+            <div class="axis-group">
+                <label>Row</label>
+                <div id="row-drop-zone" class="drop-zone">
+            </div>
+        </div>
+    </div>
+    <!-- Main Dashboard Container -->
+    <div id="dashboard-container">
+  
+      <!-- Left Sidebar -->
+      <aside id="left-sidebar">
 
-      <!-- Canvas Container -->
-      <div id="canvas-container">
-        <canvas id="visualization-canvas"></canvas>
-      </div>
+        <h3>Data Source</h3>
+        <button id="add-data-source" class="editorButton">Refresh</button>
+        <select id="data-source-select">
+          <option value="">Select Data Source</option>
+        </select>
+        <h3>Fields</h3>
+        <div id="fields-container">
 
-    </main>
-
-    <!-- Right Sidebar -->
-    <aside id="right-sidebar">
-      <button id="toggle-mouse-control">Toggle Mouse Control</button>
-      <button id="toggle-focal-mode">Toggle Focal Mode</button>
-
-      <div class="slider-container">
-        <label for="layer-depth">Layer Depth:</label>
-        <input type="range" id="layer-depth" min="0" max="1" step="0.01" value="0">
-      </div>
-      <div class="slider-container">
-        <label for="horizontal-focal">Focal X:</label>
-        <input type="range" id="horizontal-focal" min="0" max="100" value="50">
-      </div>
-      <div class="slider-container">
-        <label for="vertical-focal">Focal Y:</label>
-        <input type="range" id="vertical-focal" min="0" max="100" value="50">
-      </div>
-      <div class="slider-container">
-        <label for="marker-size">Marker:</label>
-        <input type="range" id="marker-size" min="1" max="20" value="5">
-      </div>
-      <div class="slider-container">
-        <label for="zoom">Size:</label>
-        <input type="range" id="zoom" min="0.1" max="3" step="0.1" value="1">
-      </div>
-
-      <div class="slider-container">
-        <label for="canvas-x">Canvas X:</label>
-        <input type="number" id="canvas-x" value="50">
-      </div>
-      <div class="slider-container">
-        <label for="canvas-y">Canvas Y:</label>
-        <input type="number" id="canvas-y" value="50">
-      </div>
-      <div class="slider-container">
-        <label for="canvas-width">Canvas Width:</label>
-        <input type="number" id="canvas-width" value="600">
-      </div>
-      <div class="slider-container">
-        <label for="canvas-height">Canvas Height:</label>
-        <input type="number" id="canvas-height" value="600">
-      </div>
-    </aside>
-
-  </div>
+      </aside>
+  
+      <!-- Main Content -->
+      <main id="main-content">
+        <!-- Updated Chart Container for layered parallax rendering -->
+        <div id="canvas-container">
+          <!-- Static layer: renders axes, grid, etc. -->
+          <canvas id="static-layer"></canvas>
+          <!-- Dynamic layer: renders Chart.js charts (data updates) -->
+          <canvas id="dynamic-layer"></canvas>
+        </div>
+      </main>
+  
+      <!-- Right Sidebar -->
+      <aside id="right-sidebar">
+        <div class="slider-container">
+          <label for="horizontal-focal">Focal X:</label>
+          <input type="range" id="horizontal-focal" min="0" max="100" value="50">
+        </div>
+        <div class="slider-container">
+          <label for="vertical-focal">Focal Y:</label>
+          <input type="range" id="vertical-focal" min="0" max="100" value="50">
+        </div>
+        <div class="slider-container">
+          <label for="marker-size">Marker:</label>
+          <input type="range" id="marker-size" min="1" max="20" value="5">
+        </div>
+        <div class="slider-container">
+          <label for="zoom">Size:</label>
+          <input type="range" id="zoom" min="0.0001" max="1.5" step="0.00001" value="0.1">
+        </div>
+        <div class="slider-container">
+          <label for="layer-spacing">Layer Spacing:</label>
+          <input type="range" id="layer-spacing" min="0.00001" step="0.01" max="5" value="1">
+        </div>
+  
+      </aside>
+  
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Add more script tags as needed for each JavaScript file -->
+    <script src="js/upload.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/editor.js"></script>
+    <script src="js/parallaxChart.js"></script>
+    <script src="js/visualization.js"></script>
 </body>
 </html>
