@@ -21,14 +21,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
   console.log("DOMContentLoaded: Editor service is starting.");
 
-  // With globals:
-  const parallaxChart = window.parallaxChart;
   const editorController = window.editorController;
   // Get DOM elements first.
   const container = document.getElementById("canvas-container");
+  window.container = container;
   const dynamicCanvas = document.getElementById("dynamic-layer");
-  const canvas = dynamicCanvas;
+  window.dynamicCanvas = dynamicCanvas;
+  const canvas = window.dynamicCanvas;
   const ctx = canvas.getContext("2d");
+  window.ctx = ctx;
+  // With globals:
+  const parallaxChart = window.parallaxChart = new ParallaxChart({}, window.container, window.dynamicCanvas, window.ctx);
+  
+
 
   // Initialize state.
   const state = parallaxChart.state; // now editor.js uses parallaxChart.state for all layer handling
@@ -51,6 +56,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /* --- Step 1: Data Source & Field Loading --- */
   function initDataSource() {
+    const state = parallaxChart.state;
+
     dataSourceSelect.addEventListener("change", (e) => {
       const selected = e.target.value;
       if (selected === "csv") {
@@ -59,6 +66,11 @@ document.addEventListener("DOMContentLoaded", () => {
         fieldsContainer.innerHTML = "";
       }
     });
+    if (Array.isArray(state.layers) && state.layers.length > 0 && state.currentLayerIndex === -1) {
+      state.currentLayerIndex = 0;
+    } else if (Array.isArray(state.layers)) {
+      state.currentLayerIndex = state.layers.length - 1;
+    }
   }
   initDataSource();
 
@@ -97,6 +109,11 @@ document.addEventListener("DOMContentLoaded", () => {
     state.currentLayerIndex = state.layers.length > 0 ? 0 : -1;
     updateLayerPanel();
     updateAxisDropZones();
+    if (Array.isArray(state.layers) && state.layers.length > 0 && state.currentLayerIndex === -1) {
+      state.currentLayerIndex = 0;
+    } else if (Array.isArray(state.layers)) {
+      state.currentLayerIndex = state.layers.length - 1;
+    }
   });
   
   // NEW: Add function fetchDataForSource to load dataset content by ID
@@ -154,7 +171,7 @@ document.addEventListener("DOMContentLoaded", () => {
     console.log("updateFieldsFromData: dataheader content:", dataheader);
     const fieldsContainer = document.getElementById("fields-container");
     fieldsContainer.innerHTML = "";
-    if (dataheader.length > 0) {
+    if (Array.isArray(dataheader) && dataheader.length > 0) {
       dataheader.forEach(field => {
         let type = "string";
         if (DataSource.length > 0 && DataSource[0][field] !== undefined) {
@@ -193,7 +210,13 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     console.log("tryGenerateChartForActiveLayer: Generating chart for layer", state.currentLayerIndex); 
     const layer = state.layers[state.currentLayerIndex];
-    if (layer.colField && layer.rowField&& layer.coldata.length && layer.rowdata.length) {
+    if (!layer || typeof layer !== "object") {
+      console.warn("No valid layer selected for chart generation.");
+      return;
+    }
+    if (layer.colField && layer.rowField &&
+      Array.isArray(layer.coldata) && layer.coldata.length &&
+      Array.isArray(layer.rowdata) && layer.rowdata.length)  {
       window.editorController.processLayerData(layer);
       window.editorController.generateChartImage(layer);
     }
@@ -224,6 +247,7 @@ document.addEventListener("DOMContentLoaded", () => {
         groups[key] = groups[key] || { key, x: key, y: 0 };
         groups[key].y += waitTime;
       });
+      layer.data = layer.data || [];
       // Sort the data points by key.
       layer.data = Object.values(groups).sort((a, b) => a.key.localeCompare(b.key));
     }
@@ -233,11 +257,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // Draw a Chart.js bar chart using the processed data.
 window.editorController.generateChartImage = function (layer) {
-
+    if (!layer || typeof layer !== "object") {
+      console.error("generateChartImage: Invalid layer object.");
+      return;
+    }
+    if (!Array.isArray(layer.rowdata) || !Array.isArray(layer.coldata)) {
+      console.warn("generateChartImage: Missing or invalid data arrays for layer", layer.id);
+      return;
+    }
     console.log("generateChartImage: Generating chart image for layer", layer.id);
     const offscreen = document.createElement("canvas");
-    offscreen.width = state.canvasWidth;
-    offscreen.height = state.canvasHeight;
+    console.log("Generating chart image: canvasWidth =", state.canvasWidth, "canvasHeight =", state.canvasHeight);
+    offscreen.width = state.canvasWidth || 600;
+    offscreen.height = state.canvasHeight || 600;
     const ctxOffscreen = offscreen.getContext("2d");
 
 
@@ -359,36 +391,29 @@ window.editorController.generateChartImage = function (layer) {
 
     // Allow the chart to render, then capture its image.
     setTimeout(() => {
+      console.log("Offscreen canvas size:", offscreen.width, offscreen.height);
+      ctxOffscreen.fillStyle = "red";
+      ctxOffscreen.fillRect(0, 0, 10, 10); // Force red dot to prove rendering
+
+
       const dataURL = offscreen.toDataURL();
+      console.log("toDataURL result (first 30 chars):", dataURL.slice(0, 30));
       layer.cachedImage = dataURL;
-      parallaxChart.addOrUpdateLayerImage(layer, container, currentMouseX, currentMouseY, parseFloat(zoomSlider.value));
+      console.log("Chart rendered, layer.cachedImage length:", layer.cachedImage?.length);
+      parallaxChart.addOrUpdateLayerImage(layer, window.container, currentMouseX, currentMouseY, parseFloat(zoomSlider.value));
     }, 500);
 }
 
   // --- Render loop ---
   let currentMouseX = 0, currentMouseY = 0;
-  container.addEventListener("mousemove", (e) => {
-    const rect = container.getBoundingClientRect();
+  window.container.addEventListener("mousemove", (e) => {
+    const rect = window.container.getBoundingClientRect();
     currentMouseX = e.clientX - rect.left;
     currentMouseY = e.clientY - rect.top;
     requestAnimationFrame(() => {
-      parallaxChart.updateAllLayerImageTransforms(container, currentMouseX, currentMouseY, parseFloat(zoomSlider.value));
+      parallaxChart.updateAllLayerImageTransforms(window.container, currentMouseX, currentMouseY, parseFloat(zoomSlider.value));
     });
   });
-
-  // New function: updateLayerDepths - adjust each layer's z property using state.layerSpacing.
-  function updateLayerDepths() {
-    state.layers.forEach((layer, index) => {
-      // Set layer.z based on the index; adjust multiplier as needed.
-      layer.z = (index + 1) * parseFloat(state.layerSpacing);
-      // Update the depth attribute on the cached image if it exists.
-      const img = document.getElementById("layer-img-" + layer.id);
-      if (img) {
-        img.dataset.depth = layer.z;
-      }
-    });
-  }
-
 
   // NEW: Modified fetchDataSourceList to optionally select a new source if provided.
   function fetchDataSourceList(newSourceId) {
@@ -493,6 +518,7 @@ window.editorController.generateChartImage = function (layer) {
 
   // Input controls (focal, zoom, marker size, etc.)
   document.getElementById("horizontal-focal").addEventListener("input", (e) => {
+    if (!state.focalPoint) state.focalPoint = {};
     if (state.sliderFocal) {
       console.log("horizontal-focal slider fired with value:", e.target.value);
       state.focalPoint.x = parseFloat(e.target.value) / 100;
@@ -501,6 +527,7 @@ window.editorController.generateChartImage = function (layer) {
     }
   });
   document.getElementById("vertical-focal").addEventListener("input", (e) => {
+    if (!state.focalPoint) state.focalPoint = {};
     if (state.sliderFocal) {
       console.log("vertical-focal slider fired with value:", e.target.value);
       state.focalPoint.y = parseFloat(e.target.value) / 100;
@@ -515,7 +542,7 @@ window.editorController.generateChartImage = function (layer) {
     window.render();
   });
 
-  container.addEventListener("wheel", (e) => {
+  window.container.addEventListener("wheel", (e) => {
     e.preventDefault();
     // Adjust the zoom value: a small negative deltaY increases zoom, positive decreases.
     let zoom = state.zoom;
@@ -524,7 +551,7 @@ window.editorController.generateChartImage = function (layer) {
     state.zoom = zoom;
     zoomSlider.value = zoom;
     // Update the parallax image transforms with the new zoom value.
-    parallaxChart.updateAllLayerImageTransforms(container, currentMouseX, currentMouseY, zoom);
+    parallaxChart.updateAllLayerImageTransforms(window.container, currentMouseX, currentMouseY, zoom);
   });
 
   document.getElementById("marker-size").addEventListener("input", (e) => {
@@ -544,6 +571,10 @@ window.editorController.generateChartImage = function (layer) {
   //  console.log("toggle-focal-mode: sliderFocal is now", state.sliderFocal);
   //});
   canvas.addEventListener("mousemove", (e) => {
+    if (!state.focalPoint) {
+      state.focalPoint = { x: 0.5, y: 0.5 };
+    }
+
     if (state.mouseControl && !state.sliderFocal) {
       state.focalPoint.x = e.offsetX / canvas.width;
       state.focalPoint.y = e.offsetY / canvas.height;
@@ -553,7 +584,7 @@ window.editorController.generateChartImage = function (layer) {
   });
 
   // Add mouseenter to update booleans when mouse is over canvas-container
-  container.addEventListener("mouseenter", () => {
+  window.container.addEventListener("mouseenter", () => {
     state.mouseControl = true;
     state.sliderFocal = false;
    // console.log("mouseenter: Set state.mouseControl =",state.mouseControl," and state.sliderFocal = ", state.sliderFocal);
@@ -573,7 +604,7 @@ window.editorController.generateChartImage = function (layer) {
   //  });
   //});
 
-  container.addEventListener("mouseleave", () => {
+  window.container.addEventListener("mouseleave", () => {
     // Use slider values exclusively to set focal point
     state.mouseControl = false;
     state.sliderFocal = true;
@@ -588,8 +619,8 @@ window.editorController.generateChartImage = function (layer) {
   document.getElementById("layer-spacing").addEventListener("input", (e) => {
     console.log("layer-spacing: Updated layerSpacing to", state.layerSpacing);
     state.layerSpacing = parseFloat(e.target.value);
-    updateLayerDepths();
-    parallaxChart.updateAllLayerImageTransforms(container, currentMouseX, currentMouseY, parseFloat(zoomSlider.value));
+    parallaxChart.updateLayerDepths();
+    parallaxChart.updateAllLayerImageTransforms(window.container, currentMouseX, currentMouseY, parseFloat(zoomSlider.value));
   });
   // Layer Panel: handle layer tab selection and adding new layers.
   
@@ -651,7 +682,11 @@ window.editorController.generateChartImage = function (layer) {
     const newId = state.layers.length + 1;
     const newLayer = { id: newId, z: newId * 0.1, rowField: null, colField: null, data: [], datasetId: dataSourceSelect.value || null };
     state.layers.push(newLayer);
-    state.currentLayerIndex = state.layers.length - 1;
+    if (state.layers.length > 0 && state.currentLayerIndex === -1) {
+      state.currentLayerIndex = 0;
+    } else {
+      state.currentLayerIndex = state.layers.length - 1;
+    }
     window.updateLayerPanel();
     window.updateAxisDropZones();
   });
@@ -674,6 +709,18 @@ window.editorController.generateChartImage = function (layer) {
     e.preventDefault();
     colDropZone.classList.remove('dragover');
     const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+    if (!data.field || typeof data.field !== "string") {
+      console.warn("Invalid field dropped:", data);
+      return;
+    }
+    if (!Array.isArray(DataSource) || DataSource.length === 0) {
+      console.warn("DataSource is invalid or empty:", DataSource);
+      return;
+    }
+    if (!DataSource[0].hasOwnProperty(data.field)) {
+      console.error(`Field "${data.field}" not found in dataset rows.`);
+      return;
+    }
     console.log("drop: Field", data.field, "with type", data.type, "dropped into column-drop-zone");
     
     if (state.currentLayerIndex < 0 || !state.layers[state.currentLayerIndex]) {
@@ -684,6 +731,15 @@ window.editorController.generateChartImage = function (layer) {
     const sourceArray = Array.isArray(DataSource) ? DataSource : DataSource.csvRows;
     if (!Array.isArray(sourceArray)) {
       console.error("DataSource is not an array:", DataSource);
+      return;
+    }
+
+    if (!data.field || typeof data.field !== "string") {
+      console.warn("Invalid field provided:", data.field);
+      return;
+    }
+    if (!sourceArray.every(row => row.hasOwnProperty(data.field))) {
+      console.error("Field", data.field, "not found in all rows.");
       return;
     }
     // Map the field values.
@@ -702,13 +758,20 @@ window.editorController.generateChartImage = function (layer) {
         valueCounts[val] = (valueCounts[val] || 0) + 1;
       }
     });
+    if (state.currentLayerIndex < 0 || !state.layers[state.currentLayerIndex]) {
+      console.error("No current layer selected.");
+      return;
+    }
     state.layers[state.currentLayerIndex].data = Object.entries(valueCounts).map(([label, count]) => ({
       x: label,
       y: count
     }));
 
     window.updateAxisDropZones();
-    window.editorController.generateChartImage(state.layers[state.currentLayerIndex]);
+    if (currentLayer.rowdata && currentLayer.coldata) {
+      window.editorController.generateChartImage(currentLayer);
+    }
+   // window.editorController.generateChartImage(state.layers[state.currentLayerIndex]);
     window.render();
   });
 
@@ -717,6 +780,18 @@ window.editorController.generateChartImage = function (layer) {
     e.preventDefault();
     rowDropZone.classList.remove('dragover');
     const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+    if (!data.field || typeof data.field !== "string") {
+      console.warn("Invalid field dropped:", data);
+      return;
+    }
+    if (!Array.isArray(DataSource) || DataSource.length === 0) {
+      console.warn("DataSource is invalid or empty:", DataSource);
+      return;
+    }
+    if (!DataSource[0].hasOwnProperty(data.field)) {
+      console.error(`Field "${data.field}" not found in dataset rows.`);
+      return;
+    }
     console.log("drop: Field", data.field, "with type", data.type, "dropped into row-drop-zone");
     
     if (state.currentLayerIndex < 0 || !state.layers[state.currentLayerIndex]) {
@@ -744,19 +819,26 @@ window.editorController.generateChartImage = function (layer) {
         valueCounts[val] = (valueCounts[val] || 0) + 1;
       }
     });
+    if (state.currentLayerIndex < 0 || !state.layers[state.currentLayerIndex]) {
+      console.error("No valid layer selected to assign chart data.");
+      return;
+    }
     state.layers[state.currentLayerIndex].data = Object.entries(valueCounts).map(([label, count]) => ({
       x: label,
       y: count
     }));
 
     window.updateAxisDropZones();
-    window.editorController.generateChartImage(state.layers[state.currentLayerIndex]);
+    if (currentLayer.rowdata && currentLayer.coldata) {
+      window.editorController.generateChartImage(currentLayer);
+    }
+    //window.editorController.generateChartImage(state.layers[state.currentLayerIndex]);
     window.render();
   });
 
 
   window.render = function() {
-    parallaxChart.updateAllLayerImageTransforms(container, currentMouseX, currentMouseY, parseFloat(zoomSlider.value));
+    parallaxChart.updateAllLayerImageTransforms(window.container, currentMouseX, currentMouseY, parseFloat(zoomSlider.value));
   }
   // Setup drag & drop for any preexisting draggable fields.
   console.log("Setting up drag and drop for fields...");
@@ -782,7 +864,6 @@ window.editorController.generateChartImage = function (layer) {
 });
 
 // Remove require(...) calls and use globally attached objects.
-const parallaxChart = window.parallaxChart;
 const editorController = window.editorController; // Ensure editorController is attached to window (via a similar change in its file)
 
 // Define global UI update functions for editor updates
