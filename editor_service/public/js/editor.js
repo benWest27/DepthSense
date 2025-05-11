@@ -1,6 +1,3 @@
-// Added debug mode flag:
-const debugMode = false;
-
 document.addEventListener("DOMContentLoaded", () => {
   // Authentication check: ensure user is logged in with admin or creator role.
   const token = localStorage.getItem("jwt");
@@ -610,14 +607,14 @@ window.editorController.generateChartImage = function (layer) {
     });
   });
 
-  document.getElementById("marker-size").addEventListener("input", (e) => {
-    state.markerSize = parseInt(e.target.value);
-    if(debugMode) console.log("marker-size: Updated markerSize to", state.markerSize);
-    state.layers.forEach(element => {
-      window.editorController.generateChartImage(element); // Regenerate the chart for each layer with the new marker size
-    });
-    window.render();
-  });
+  //document.getElementById("marker-size").addEventListener("input", (e) => {
+  //  state.markerSize = parseInt(e.target.value);
+  //  if(debugMode) console.log("marker-size: Updated markerSize to", state.markerSize);
+  //  state.layers.forEach(element => {
+  //    window.editorController.generateChartImage(element); // Regenerate the chart for each layer with the new marker size
+  //  });
+  //  window.render();
+  //});
   //document.getElementById("toggle-mouse-control").addEventListener("click", () => {
   //  state.mouseControl = !state.mouseControl;
   //  console.log("toggle-mouse-control: mouseControl is now", state.mouseControl);

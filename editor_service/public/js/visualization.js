@@ -115,7 +115,6 @@ function createLoadPopup(visualizations, onLoad) {
 
 // Save the current ParallaxChart state to the data_service
 async function saveVisualizationToDataService(title, description = "") {
-  // Assumes window.parallaxChart exists and has getSerializableState()
   if (!window.parallaxChart || typeof window.parallaxChart.getSerializableState !== "function") {
     alert("Visualization state is not available.");
     return;
@@ -139,9 +138,9 @@ async function saveVisualizationToDataService(title, description = "") {
       const err = await resp.text();
       throw new Error(err || "Failed to save visualization.");
     }
-    alert("Visualization saved successfully!");
+    document.getElementById("status-message").textContent = "Visualization saved successfully!";
   } catch (err) {
-    alert("Error saving visualization: " + err.message);
+    document.getElementById("status-message").textContent = "Error saving visualization: " + err.message;
   }
 }
 

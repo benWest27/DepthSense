@@ -17,21 +17,24 @@ const pool = new Pool({
 // User Registration
 exports.register = async (req, res) => {
     const { username, email, password, role } = req.body;
+    logger.info("Register endpoint hit with data:", { username, email, role }); // Updated to logger.info
     if (!["admin", "creator", "viewer"].includes(role)) {
         return res.status(400).json({ error: "Invalid role" });
     }
     logger.info("🔍 Registering user:", { username, email, role });
     try {
         const hashedPassword = await bcrypt.hash(password, 10);
+        logger.info("Password hashed successfully."); // Updated to logger.info
 
         await pool.query(
             "INSERT INTO users (username, email, password_hash, role) VALUES ($1, $2, $3, $4)",
             [username, email, hashedPassword, role]
         );
+        logger.info("User inserted into database."); // Updated to logger.info
 
         res.status(201).json({ message: "User registered successfully!" });
     } catch (error) {
-        console.error("Registration error:", error);
+        logger.error("Registration error:", error);
         res.status(500).json({ error: "Registration failed" });
     }
 };
@@ -56,7 +59,7 @@ exports.login = async (req, res) => {
 
         res.json({ token });
     } catch (error) {
-        console.error('Login error:', error);
+        logger.error('Login error:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 };

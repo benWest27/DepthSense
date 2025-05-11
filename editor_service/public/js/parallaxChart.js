@@ -103,6 +103,7 @@ class ParallaxChart {
                 if (layer.cachedImage) delete layer.cachedImage;
                 if (layer.rowdata) delete layer.rowdata;
                 if (layer.coldata) delete layer.coldata;
+                if (layer.data) delete layer.data; 
             });
         }
         // Update visualization name label if a visualizationName is saved in state

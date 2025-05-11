@@ -3,79 +3,52 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Data Visualization Viewer</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>ParaViz Editor</title>
+    <link rel="stylesheet" href="css/index.css">
 </head>
 <body>
-    <h1>Data Visualization Viewer</h1>
-    
-    <section id="visualization-list">
-        <h2>Available Visualizations</h2>
-        <ul id="visualizationGallery"></ul>
-    </section>
-    
-    <section id="visualization-container">
-        <h2>Parallax Visualization</h2>
-        <canvas id="parallaxCanvas"></canvas>
-        <div>
-            <button id="lockView">Lock View</button>
-            <button id="freeMove">Free Move</button>
+    <div class="background-container">
+      <header class="editor-header">
+        <div class="header-buttons">
+            <button class="button">Logout</button>
         </div>
-    </section>
-    
-    <script>
-        let isLocked = false;
-        const canvas = document.getElementById("parallaxCanvas");
-        const ctx = canvas.getContext("2d");
-        canvas.width = window.innerWidth * 0.8;
-        canvas.height = window.innerHeight * 0.6;
+      </header>
+    </div>
+    <!-- Main Dashboard Container -->
+    <div id="dashboard-container">
+      <main id="main-content">
+        <!-- Updated Chart Container for layered parallax rendering -->
+        <aside id="canvas-container">
+          <!-- Static layer: renders axes, grid, etc. -->
+          <canvas id="static-layer"></canvas>
+          <!-- Dynamic layer: renders Chart.js charts (data updates) -->
+          <canvas id="dynamic-layer"></canvas>
+        </aside>
+        <!-- Right Sidebar -->
+        <aside id="right-sidebar">
 
-        async function loadVisualizations() {
-            const response = await fetch('/api/visualizations');
-            const visualizations = await response.json();
-            const gallery = document.getElementById('visualizationGallery');
-            gallery.innerHTML = '';
-            
-            visualizations.forEach(visualization => {
-                const listItem = document.createElement('li');
-                listItem.textContent = visualization.name;
-                listItem.onclick = () => loadVisualization(visualization.id);
-                gallery.appendChild(listItem);
-            });
-        }
-
-        async function loadVisualization(id) {
-            const response = await fetch(`/api/visualizations/${id}`);
-            const visualization = await response.json();
-            drawParallaxVisualization(visualization);
-        }
-
-        function drawParallaxVisualization(data) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            data.config.layers.forEach((layer, index) => {
-                ctx.fillStyle = `rgba(0, 0, 255, ${1 - index * 0.2})`;
-                ctx.fillRect(100 + index * 30, 100 + index * 30, 200, 100);
-            });
-        }
-
-        function handleMouseMove(event) {
-            if (!isLocked) {
-                const mouseX = event.clientX;
-                const mouseY = event.clientY;
-                canvas.style.transform = `translate(${mouseX * 0.02}px, ${mouseY * 0.02}px)`;
-            }
-        }
-
-        document.getElementById("lockView").addEventListener("click", () => {
-            isLocked = true;
-        });
-
-        document.getElementById("freeMove").addEventListener("click", () => {
-            isLocked = false;
-        });
-
-        canvas.addEventListener("mousemove", handleMouseMove);
-        window.onload = loadVisualizations;
-    </script>
+            <div class="slider-container">
+            <label for="horizontal-focal">Focal X:</label>
+            <input type="range" id="horizontal-focal" min="0" max="100" value="50">
+            </div>
+            <div class="slider-container">
+            <label for="vertical-focal">Focal Y:</label>
+            <input type="range" id="vertical-focal" min="0" max="100" value="50">
+            </div>
+            <div class="slider-container">
+            <label for="marker-size">Marker:</label>
+            <input type="range" id="marker-size" min="1" max="20" value="5">
+            </div>
+            <div class="slider-container">
+            <label for="zoom">Size:</label>
+            <input type="range" id="zoom" min="0.0001" max="1.5" step="0.00001" value="0.1">
+            </div>
+            <div class="slider-container">
+            <label for="layer-spacing">Layer Spacing:</label>
+            <input type="range" id="layer-spacing" min="0.00001" step="0.01" max="5" value="1">
+            </div>
+        </aside>
+      </main>
+    </div>
 </body>
 </html>

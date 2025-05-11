@@ -5,8 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ParaViz Editor</title>
     <link rel="stylesheet" href="css/index.css">
+    
 </head>
 <body>
+  <div id="status-message" class="status"></div>
     <div class="background-container">
       <header class="editor-header">
         <div class="header-buttons">
@@ -74,12 +76,12 @@
           <label for="vertical-focal">Focal Y:</label>
           <input type="range" id="vertical-focal" min="-100" max="100" value="50">
         </div>
-        <div class="slider-container">
+        <!-- <div class="slider-container">
           <label for="marker-size">Marker:</label>
           <input type="range" id="marker-size" min="1" max="20" value="5">
-        </div>
+        </div>-->
         <div class="slider-container">
-          <label for="zoom">Size:</label>
+          <label for="zoom">Zoom:</label>
           <input type="range" id="zoom" min="0.0000001" max="50" step="0.00001" value="0.1">
         </div>
         <div class="slider-container">

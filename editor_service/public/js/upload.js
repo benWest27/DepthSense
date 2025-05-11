@@ -71,17 +71,49 @@ function createUploadOverlay() {
       method: "POST",
       body: formData,
     })
-      .then(resp => {
-        if (!resp.ok) {
-          return resp.text().then(text => { throw new Error("Upload failed: " + text); });
+    .then(resp => {
+      if (!resp.ok) {
+        return resp.text().then(text => {
+          throw new Error(`Upload failed: ${text}`);
+        });
+      }
+      return resp.json();
+    })
+    .then(result => {
+      console.log("CSV file uploaded successfully:", result);
+      removeOverlay();
+    })
+    .catch(err => {
+      console.error("CSV upload error:", err);
+
+      // Display detailed error message
+      const errorMessage = document.createElement("div");
+      errorMessage.textContent = `Upload failed: ${err.message}. Please check your network connection or try again later.`;
+      errorMessage.style.position = "fixed";
+      errorMessage.style.bottom = "20px";
+      errorMessage.style.left = "50%";
+      errorMessage.style.transform = "translateX(-50%)";
+      errorMessage.style.backgroundColor = "#f44336";
+      errorMessage.style.color = "#fff";
+      errorMessage.style.padding = "10px 20px";
+      errorMessage.style.borderRadius = "5px";
+      errorMessage.style.boxShadow = "0 2px 4px rgba(0,0,0,0.2)";
+      errorMessage.style.zIndex = "1000";
+      document.body.appendChild(errorMessage);
+
+      // Retry logic (optional)
+      setTimeout(() => {
+        if (confirm("Upload failed. Would you like to retry?")) {
+          container.querySelector("#upload-submit-btn").click();
         }
-        return resp.json();
-      })
-      .then(result => {
-        console.log("CSV file uploaded successfully:", result);
-        removeOverlay();
-      })
-      .catch(err => console.error("CSV upload error:", err));
+      }, 3000);
+
+      setTimeout(() => {
+        if (errorMessage && errorMessage.parentNode) {
+          errorMessage.parentNode.removeChild(errorMessage);
+        }
+      }, 5000);
+    });
   });
   
   // Close overlay when clicking the X button.
@@ -128,14 +160,21 @@ function initCSVUpload() {
           method: "POST",
           body: formData,
         })
-          .then(resp => {
-            if (!resp.ok) throw new Error("Upload failed");
-            return resp.json();
-          })
-          .then(result => {
-            console.log("CSV file uploaded successfully:", result);
-          })
-          .catch(err => console.error("CSV upload error:", err));
+        .then(resp => {
+          if (!resp.ok) {
+            return resp.text().then(text => {
+              throw new Error(`Upload failed: ${text}`);
+            });
+          }
+          return resp.json();
+        })
+        .then(result => {
+          console.log("CSV file uploaded successfully:", result);
+        })
+        .catch(err => {
+          console.error("CSV upload error:", err);
+          alert(`Upload failed: ${err.message}`);
+        });
       }
       alert("Submitted!");
     });
