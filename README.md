@@ -4,6 +4,7 @@
 
 ParaViz is a secure, browser-based web application that enables analysts to create and share 2.5D parallax-style data visualizations. These visuals can be embedded into third-party dashboards (e.g., Tableau) and are viewable via a separate Viewer service. The project follows a microservices architecture using NGINX as a reverse proxy and PostgreSQL for persistent storage.
 
+
 ### Key Features
 
 - **Authentication Service**: Secure login/registration with JWT-based role validation.
