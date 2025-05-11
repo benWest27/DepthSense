@@ -58,8 +58,12 @@ describe('User Flow Tests', () => {
       await page.select('#data-source-select', 'source1');
       console.log("Clicking the Add Layer button...");
       await page.click('#add-layer');
-      await delay(1000); // Add a delay to ensure the DOM updates
-      
+      console.log("Waiting for layer-tab to appear...");
+      await page.waitForFunction(() => {
+        const panel = document.getElementById('layer-panel');
+        return panel && panel.querySelectorAll('.layer-tab').length > 0;
+      }, { timeout: 5000 });
+
       const panelHTML = await page.evaluate(() => {
         const panel = document.getElementById('layer-panel');
         return panel ? panel.innerHTML : null;
