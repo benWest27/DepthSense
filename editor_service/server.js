@@ -22,8 +22,8 @@ app.use((req, res, next) => {
     "script-src 'self' https://cdn.jsdelivr.net; " +
     "script-src-elem 'self' https://cdn.jsdelivr.net; " +
     "connect-src 'self' http://localhost:5003; " +
-    "style-src 'self' 'unsafe-inline'; " +
-    "font-src 'self' data:; " +
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+    "font-src 'self' https://fonts.gstatic.com; " +
     "img-src 'self' data:;"
   );
   next();

@@ -357,3 +357,16 @@ color: white;
 {
 display: flex;
 }
+
+.status{
+  position: fixed;
+  top: 0;
+  left: center;
+  width: auto;
+  height: auto;
+  background-color: rgba(121, 121, 121, 0.829);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}

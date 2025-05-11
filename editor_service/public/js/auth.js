@@ -52,14 +52,16 @@ document.addEventListener("DOMContentLoaded", () => {
                 const data = await response.json();
                 
                 if (response.ok) {
-                    alert("Registration successful! Redirecting to login...");
+                    showNotification("Registration successful! Redirecting to login...", "success");
                     window.location.href = "login.html";
                 } else {
                     errorMessage.textContent = data.error || "Registration failed.";
+                    showNotification(data.error || "Registration failed.", "error");
                 }
             } catch (error) {
                 console.error("Registration error:", error);
                 errorMessage.textContent = "An error occurred. Please try again.";
+                showNotification("An error occurred. Please try again.", "error");
             }
         });
     }

@@ -1,3 +1,6 @@
+// Added debug mode flag:
+const debugMode = false; // Set to true for detailed logs
+
 // --- In parallaxChart.js ---
 class ParallaxChart {
     constructor(state, container, dynamicCanvas, ctx) {
@@ -13,13 +16,14 @@ class ParallaxChart {
         canvasY: 50,
         canvasWidth: 600,
         canvasHeight: 600,
-        layerSpacing: 2,
+        layerSpacing: 0.1,
+        MinimumLayerSpacing: 0.00001,
         layers: [ 
             { id: 1, z: 0.1, rowField: null, colField: null, rowdata: [], coldata: [], datasetId: null}
         ],
         currentLayerIndex: -1
         };
-
+        this.state.layers = this.state.layers || [];
         // Store DOM elements.
         this.container = container;
         this.dynamicCanvas = dynamicCanvas;
@@ -36,20 +40,20 @@ class ParallaxChart {
         const layer = this.state.layers.find(layer => layer.id === layerId);
         if (!layer) return;
         const rect = container.getBoundingClientRect();
-        const offsetX = (currentMouseX - rect.width / 2) * 0.05 * parseFloat(img.dataset.depth || 0.1);
-        const offsetY = (currentMouseY - rect.height / 2) * 0.05 * parseFloat(img.dataset.depth || 0.1);
-        const computedZoom = zoomValue / layer.z;
+        const offsetX = (currentMouseX - rect.width * 1.1) * 0.1 * parseFloat(img.dataset.depth || 0.1);
+        const offsetY = (currentMouseY - rect.height * 1.1) * 0.1 * parseFloat(img.dataset.depth || 0.1);
+        const computedZoom = (zoomValue / layer.z)/4;
         // Apply scaling multiplier to make image smaller.
     
         img.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${computedZoom * 0.5})`;
         // Compute opacity based on zoom thresholds.
     
-        const fadeStart = 1, fadeEnd = 3;
+        const fadeStart = 1.3, fadeEnd = 2.5;
         let alpha;
         if (computedZoom <= fadeStart) {
-        alpha = 0.9;
+        alpha = 0.95;
         } else if (computedZoom >= fadeEnd) {
-        alpha = 0.1;
+        alpha = 0;
         } else {
         alpha = 1 - ((computedZoom - fadeStart) / (fadeEnd - fadeStart));
         }
@@ -59,6 +63,11 @@ class ParallaxChart {
     // Update transforms on all layer images.
     async updateAllLayerImageTransforms(container, currentMouseX, currentMouseY, zoomValue) {
         //console.log("this.state.layers:", this.state.layers);
+        if (!this.state || !Array.isArray(this.state.layers)) {
+            console.warn("Invalid state or missing layers:", this.state);
+            return;
+        }
+        
         for (const layer of this.state.layers) {
             const img = document.getElementById("layer-img-" + layer.id);
             if (img) {
@@ -94,6 +103,7 @@ class ParallaxChart {
                 if (layer.cachedImage) delete layer.cachedImage;
                 if (layer.rowdata) delete layer.rowdata;
                 if (layer.coldata) delete layer.coldata;
+                if (layer.data) delete layer.data; 
             });
         }
         // Update visualization name label if a visualizationName is saved in state
@@ -109,6 +119,11 @@ class ParallaxChart {
     async setStateFromSerialized(serializedState) {
         if (!serializedState || typeof serializedState !== "object") return;
         this.state = JSON.parse(JSON.stringify(serializedState));
+
+        if (typeof window.fetchDataForSource !== "function") {
+            console.warn("window.fetchDataForSource is not yet defined.");
+            return;
+        }
     
         if (this.state.canvasWidth && this.state.canvasHeight) {
             this.offscreenCanvas.width = this.state.canvasWidth;
@@ -122,10 +137,13 @@ class ParallaxChart {
                         const fetchedData = await window.fetchDataForSource(layer.datasetId);
                         const rowArray = Array.isArray(fetchedData) ? fetchedData : (fetchedData && fetchedData.csvRows ? fetchedData.csvRows : []);
     
+                        if(debugMode) console.log("rowArray:", rowArray);
                         if (layer.rowField && layer.rowField.field) {
+                            if(debugMode) console.log("layer.rowField:", layer.rowField);
                             layer.rowdata = rowArray.map(row => row[layer.rowField.field]);
                         }
                         if (layer.colField && layer.colField.field) {
+                            if(debugMode) console.log("layer.colField:", layer.colField);
                             layer.coldata = rowArray.map(row => row[layer.colField.field]);
                         }
     
@@ -151,89 +169,64 @@ class ParallaxChart {
         if (window.render) window.render();
     }
 
-    // Restore the ParallaxChart state from a serialized state object
-    //async setStateFromSerialized(serializedState) {
-    //    if (!serializedState || typeof serializedState !== "object") return;
-    //    // Deep copy to avoid reference issues
-    //    this.state = JSON.parse(JSON.stringify(serializedState));
-    //    // Update offscreen canvas size if dimensions changed
-    //    if (this.state.canvasWidth && this.state.canvasHeight) {
-    //        this.offscreenCanvas.width = this.state.canvasWidth;
-    //        this.offscreenCanvas.height = this.state.canvasHeight;
-    //    }
-    //    // For each layer, fetch dataset rows and populate rowdata/coldata
-    //    if (Array.isArray(this.state.layers)) {
-    //        for (const layer of this.state.layers) {
-    //            if (layer.datasetId) {
-    //                try {
-    //                    const rows = await window.fetchDataForSource(layer.datasetId);
-    //                    const rowArray = Array.isArray(rows) ? rows : (rows && rows.csvRows ? rows.csvRows : []);
-    //                    if (layer.rowField && layer.rowField.field) {
-    //                        layer.rowdata = rowArray.map(row => row[layer.rowField.field]);
-    //                    }
-    //                    if (layer.colField && layer.colField.field) {
-    //                        layer.coldata = rowArray.map(row => row[layer.colField.field]);
-    //                    }
-    //                } catch (err) {
-    //                    layer.rowdata = [];
-    //                    layer.coldata = [];
-    //                }
-    //            } else {
-    //                layer.rowdata = [];
-    //                layer.coldata = [];
-    //            }
-    //        }
-    //    }
-    //    // Trigger global UI updates after state restoration
-    //    if (window.updateLayerPanel && typeof window.updateLayerPanel === "function") {
-    //        window.updateLayerPanel();
-    //    }
-    //    if (window.updateAxisDropZones && typeof window.updateAxisDropZones === "function") {
-    //        window.updateAxisDropZones();
-    //    }
-    //    if (window.updateCanvasProperties && typeof window.updateCanvasProperties === "function") {
-    //        window.updateCanvasProperties();
-    //    }
-    //    // NEW: Trigger a re-render of the chart images so the dynamic layer updates.
-    //    // Using default parameters (e.g., no mouse offset and current zoom)
-    //    this.updateAllLayerImageTransforms(this.container, 0, 0, this.state.zoom);
-//
-    //    // NEW: Call tryGenerateChartForActiveLayer() via the global editorController.
-    //    if (window.editorController && typeof window.editorController.tryGenerateChartForActiveLayer === "function") {
-    //        // Assume DataSource and zoom slider exist globally (adjust parameter passing as needed)
-    //        // const zoomSlider = document.getElementById("zoom");
-    //        // const currentZoom = this.state.zoom;
-    //        console.log("ParallaxChart, tryGenerateChartForActiveLayer:");
-    //        // Here, window.DataSource should be defined in your editor context.
-    //        window.editorController.tryGenerateChartForActiveLayer();
-    //    }
-    //    // NEW: Call editor.js functions after state restoration.
-    //    if (window.updateAxisDropZones && typeof window.updateAxisDropZones === "function") {
-    //        console.log("Calling updateAxisDropZones after state restoration.");
-    //        window.updateAxisDropZones();
-    //    }
-    //    if (this.state.currentLayerIndex >= 0 && window.editorController && typeof window.editorController.generateChartImage === "function") {
-    //        console.log("Calling generateChartImage this.state.currentLayerIndex:", this.state.currentLayerIndex);
-    //        console.log("this.state.layers:", this.state.layers);
-    //        console.log("this.state.layers[this.state.currentLayerIndex]:", this.state.layers[this.state.currentLayerIndex]);
-    //        window.editorController.generateChartImage(this.state.layers[this.state.currentLayerIndex]);
-    //        console.log("Calling generateChartImage for current layer after state restoration.");
-    //    }
-    //    if (window.render && typeof window.render === "function") {
-    //        console.log("Calling render() after state restoration.");
-    //        window.render();
-    //    }
-    //    
-    //    // Also call tryGenerateChartForActiveLayer via editorController if available.
-    //    if (window.editorController && typeof window.editorController.tryGenerateChartForActiveLayer === "function") {
-    //        window.editorController.tryGenerateChartForActiveLayer();
-    //    }
-    //}
+    // New: Add method updateLayerDepths to adjust each layer's z property using state.layerSpacing
+    updateLayerDepths() {
+        // percentShrink: 0.1 = 10% smaller each layer, 0.5 = 50% smaller each layer
+        const baseZ = 1; // Layer 0 starts with z=1 (closest)
+        this.state.layers.forEach((layer, index) => {
+            const shrinkFactor = 1 - this.state.layerSpacing; // e.g. 0.9
+            layer.z = baseZ * Math.pow(1 / shrinkFactor, index); // Exponential growth of z
+            const img = document.getElementById("layer-img-" + layer.id);
+            if (img) {
+                img.dataset.depth = layer.z;
+            }
+        });
+    }
+
+   // updateLayerDepths() {
+   //     this.state.layers.forEach((layer, index) => {
+   //         // Set layer.z based on index; adjust multiplier as needed.
+   //         layer.z = (index+ 0.1) * parseFloat(this.state.layerSpacing);
+   //         console.log(`Layer ${layer.id} depth set to: ${layer.z}`);
+   //         // Update the depth attribute on the cached image if it exists.
+   //         const img = document.getElementById("layer-img-" + layer.id);
+   //         if (img) {
+   //             img.dataset.depth = layer.z;
+   //         }
+   //     });
+   // }
 }
 
 // Export for module usage (or attach to window for a browser environment)
 if (typeof module !== "undefined" && module.exports) {
   module.exports = ParallaxChart;
 } else {
-  window.parallaxChart = new ParallaxChart();
+    const container = document.getElementById("canvas-container");
+    const dynamicCanvas = document.getElementById("dynamic-layer");
+    const ctx = dynamicCanvas ? dynamicCanvas.getContext("2d") : null;
+    const defaultState = window.parallaxChartState || {}; // or construct manually
+    
+    window.parallaxChart = new ParallaxChart(defaultState, container, dynamicCanvas, ctx);
+}
+
+// In generateChartImage method, wrap debug logs:
+window.editorController.generateChartImage = function (layer) {
+    if (!layer || typeof layer !== "object") {
+      console.error("generateChartImage: Invalid layer object.");
+      return;
+    }
+    if (!Array.isArray(layer.rowdata) || !Array.isArray(layer.coldata)) {
+      console.warn("generateChartImage: Missing or invalid data arrays for layer", layer.id);
+      return;
+    }
+    if(debugMode) console.log("Generating chart image: canvasWidth =", this.state.canvasWidth, "canvasHeight =", this.state.canvasHeight);
+    // ...existing code...
+    setTimeout(() => {
+      if(debugMode) {
+        console.log("Offscreen canvas size:", offscreen.width, offscreen.height);
+        console.log("toDataURL result (first 30 chars):", dataURL.slice(0, 30));
+        console.log("Chart rendered, layer.cachedImage length:", layer.cachedImage?.length);
+      }
+      parallaxChart.addOrUpdateLayerImage(layer, window.container, currentMouseX, currentMouseY, parseFloat(zoomSlider.value));
+    }, 500);
 }

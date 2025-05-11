@@ -25,6 +25,19 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // Utility: Show notification
+  function showNotification(message, type = "info") {
+    const notification = document.createElement("div");
+    notification.className = `notification ${type}`;
+    notification.textContent = message;
+
+    document.body.appendChild(notification);
+
+    setTimeout(() => {
+      notification.remove();
+    }, 5000); // Automatically remove after 5 seconds
+  }
+
   // Render the login form for the selected role
   function showLoginForm(role) {
     selectedRole = role;
@@ -62,6 +75,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const loginForm = document.querySelector("#login-overlay .login-form");
   if (loginForm) {
     loginForm.addEventListener("submit", function(e) {
+      document.getElementById("login-overlay").style.display = "none";
       e.preventDefault();
       console.log("nginx index.js: Login form submitted");
       const username = document.getElementById("login-username").value;
@@ -93,7 +107,7 @@ document.addEventListener("DOMContentLoaded", () => {
         })
         .catch(error => {
           console.error("nginx index.js: Login failed", error);
-          alert("Login failed. Please check your credentials.");
+          showNotification("Login failed. Please check your credentials.", "error");
         });
     });
   }
@@ -119,46 +133,15 @@ document.addEventListener("DOMContentLoaded", () => {
         })
         .then(() => {
           console.log("nginx index.js: Registration successful");
-          console.log("nginx index.js: selectedRole is ", selectedRole);
-
-          alert("Registration successful! Please log in.");
+          showNotification("Registration successful! Please log in.", "success");
           showLoginForm(selectedRole || "viewer");
         })
         .catch(error => {
           console.error("nginx index.js: Registration failed", error);
-          alert("Registration failed. Please try again.");
+          showNotification("Registration failed. Please try again.", "error");
         });
+      document.getElementById("register-overlay").style.display = "none";
     });
   }
 
-  // On load: check if already logged in and redirect, else show welcome
-  const token = localStorage.getItem("jwt");
-  if (token) {
-    console.log("nginx index.js: JWT found, verifying token");
-    // Verify token with backend before redirecting
-    fetch('/api/auth/verify', {
-      method: 'GET',
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-      .then(resp => {
-        console.log("nginx index.js: Token verification response", resp.status);
-        if (!resp.ok) throw new Error("Invalid token");
-        return resp.json();
-      })
-      .then(data => {
-        if (data && data.user && data.user.role) {
-          console.log("nginx index.js: Token verified, redirecting based on role", data.user.role);
-          redirectToRoleService(data.user.role);
-        } else {
-          console.log("nginx index.js: Token invalid, clearing JWT");
-          localStorage.removeItem("jwt");
-        }
-      })
-      .catch(() => {
-        console.log("nginx index.js: Token verification failed, clearing JWT");
-        localStorage.removeItem("jwt");
-      });
-  } else {
-    console.log("nginx index.js: No JWT found, rendering welcome screen");
-  }
 });

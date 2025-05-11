@@ -30,12 +30,14 @@ async function createPoolWithRetry(retries = MAX_RETRIES) {
     }
   }
 
-  pool.on('error', (err) => {
-    console.error('❌ PostgreSQL Connection Error:', err);
-    process.exit(1);
-  });
+pool.on('connect', () => {
+  console.log('✅ Connected to PostgreSQL Database'); // Debugging log
+});
 
-  return pool;
-}
+pool.on('error', (err) => {
+  console.error('❌ PostgreSQL Connection Error:', err); // Debugging log
+  process.exit(1);
+});
+
 
 module.exports = createPoolWithRetry;
